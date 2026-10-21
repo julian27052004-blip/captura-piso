@@ -105,12 +105,12 @@ dl.datos dt{color:var(--muted)} dl.datos dd{margin:0;font-weight:600;word-break:
 #tablero{grid-area:tablero} #col-izq{grid-area:izq} #col-der{grid-area:der}
 @media (min-width:900px) and (orientation:landscape){
   .orden-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-areas:"izq tablero" "izq der";grid-template-rows:auto 1fr;align-items:start}
-  .etapas{grid-template-columns:1fr 1fr;gap:8px} /* las 7 etapas caben sin desplazar en horizontal */
+  .etapas{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px} /* las 7 etapas caben sin desplazar en horizontal */
   /* más específico que las reglas generales de .etapa, que van después */
   .etapas .etapa{min-height:58px;padding:6px 12px;gap:10px}
   .etapas .etapa .num{width:34px;height:34px}
   .etapas .etapa .txt b{font-size:17px}
-  .etapas .etapa .txt span{font-size:13px}
+  .etapas .etapa .txt span{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #acciones-orden{margin-top:8px}
   #acciones-orden .btn.chico{min-height:44px}
   #col-izq .tarjeta{padding:12px;margin-bottom:12px}
@@ -150,13 +150,13 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
 .etiqueta{display:inline-block;padding:2px 10px;border-radius:999px;font-size:14px;font-weight:700;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-border);margin-left:6px}
 .etiqueta.doc{background:var(--bg);color:var(--fg);border-color:var(--border)}
 .etapa.noaplica{opacity:.6;border-style:dashed;background:var(--bg)}
-.tablero-fila{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.tablero-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 0;border-top:1px solid var(--border)}
 .tablero-fila:first-of-type{border-top:0}
-.tablero-fila .quien{flex:1;min-width:0;background:none;border:0;text-align:left;padding:4px 0;min-height:48px}
+.tablero-fila .quien{flex:1 1 140px;min-width:0;background:none;border:0;text-align:left;padding:4px 0;min-height:48px}
 .tablero-fila .quien b{display:block;font-size:17px}
 .tablero-fila .quien span{color:var(--muted);font-size:14px}
 .tablero-fila.actual .quien b{text-decoration:underline;text-underline-offset:4px}
-.tablero-fila .btn{flex:0 1 230px;min-height:56px;font-size:15px;line-height:1.2;padding:4px 12px}
+.tablero-fila .btn{flex:1 1 160px;max-width:260px;min-height:56px;font-size:15px;line-height:1.2;padding:4px 12px}
 #dlg-campos .segmentado{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;border:0;overflow:visible}
 #dlg-campos .segmentado span,#dlg-campos .segmentado label+label span{min-height:48px;font-size:15px;border:2px solid var(--fg);border-radius:10px}
 dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
@@ -327,7 +327,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];

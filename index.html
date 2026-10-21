@@ -101,11 +101,19 @@ dl.datos dt{color:var(--muted)} dl.datos dd{margin:0;font-weight:600;word-break:
 .segmentado input:focus-visible+span{outline:3px solid var(--ring);outline-offset:-5px}
 
 /* Orden */
-.orden-grid{display:grid;gap:var(--gap)}
+.orden-grid{display:grid;gap:var(--gap);grid-template-areas:"tablero" "izq" "der"}
+#tablero{grid-area:tablero} #col-izq{grid-area:izq} #col-der{grid-area:der}
 @media (min-width:900px) and (orientation:landscape){
-  .orden-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start}
-  .etapas{grid-template-columns:1fr 1fr;gap:10px} /* las 6 etapas caben sin desplazar en horizontal */
-  .etapa{min-height:68px;padding:8px 14px}
+  .orden-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-areas:"izq tablero" "izq der";grid-template-rows:auto 1fr;align-items:start}
+  .etapas{grid-template-columns:1fr 1fr;gap:8px} /* las 7 etapas caben sin desplazar en horizontal */
+  /* más específico que las reglas generales de .etapa, que van después */
+  .etapas .etapa{min-height:58px;padding:6px 12px;gap:10px}
+  .etapas .etapa .num{width:34px;height:34px}
+  .etapas .etapa .txt b{font-size:17px}
+  .etapas .etapa .txt span{font-size:13px}
+  #acciones-orden{margin-top:8px}
+  #acciones-orden .btn.chico{min-height:44px}
+  #col-izq .tarjeta{padding:12px;margin-bottom:12px}
 }
 .orden-resumen{color:var(--muted);font-size:16px;margin-top:8px}
 .etapas{display:grid;gap:12px}
@@ -141,6 +149,19 @@ ol.tiempo li.vacia{color:var(--muted)}
 ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-weight:700;font-size:15px}
 .etiqueta{display:inline-block;padding:2px 10px;border-radius:999px;font-size:14px;font-weight:700;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-border);margin-left:6px}
 .etiqueta.doc{background:var(--bg);color:var(--fg);border-color:var(--border)}
+.etapa.noaplica{opacity:.6;border-style:dashed;background:var(--bg)}
+.tablero-fila{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.tablero-fila:first-of-type{border-top:0}
+.tablero-fila .quien{flex:1;min-width:0;background:none;border:0;text-align:left;padding:4px 0;min-height:48px}
+.tablero-fila .quien b{display:block;font-size:17px}
+.tablero-fila .quien span{color:var(--muted);font-size:14px}
+.tablero-fila.actual .quien b{text-decoration:underline;text-underline-offset:4px}
+.tablero-fila .btn{flex:0 1 230px;min-height:56px;font-size:15px;line-height:1.2;padding:4px 12px}
+#dlg-campos .segmentado{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;border:0;overflow:visible}
+#dlg-campos .segmentado span,#dlg-campos .segmentado label+label span{min-height:48px;font-size:15px;border:2px solid var(--fg);border-radius:10px}
+dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
+#dlg-campos input[type=number]{width:100%;min-height:56px;padding:0 14px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:20px}
+#dlg-error{color:var(--danger);font-weight:700}
 
 /* Avisos flotantes */
 #error{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:30;background:var(--danger);color:var(--on-danger);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3)}
@@ -184,7 +205,11 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
     <!-- 1. Orden -->
     <section id="v-orden" hidden>
       <div class="orden-grid">
-        <div>
+        <div id="tablero" class="tarjeta" hidden>
+          <h2>Órdenes en proceso</h2>
+          <div id="tablero-lista"></div>
+        </div>
+        <div id="col-izq">
           <div class="tarjeta">
             <label for="sel-orden">Orden de producción o lote</label>
             <div class="fila">
@@ -221,12 +246,16 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
               <input type="datetime-local" id="in-evento" step="60">
               <small>Lo observado toma la hora automática. Al guardar, el origen vuelve a "Observado".</small>
             </div>
+            <div id="campo-doc" class="campo" hidden>
+              <label for="in-doc">Nombre o folio del documento <span class="req">*</span></label>
+              <input type="text" id="in-doc" placeholder="Ej. Remisión 4521" autocapitalize="sentences">
+            </div>
           </div>
 
           <div id="etapas" class="etapas" aria-label="Etapas de la orden"></div>
         </div>
 
-        <div class="tarjeta">
+        <div id="col-der" class="tarjeta">
           <h2>Línea de tiempo</h2>
           <ol id="tiempo" class="tiempo"></ol>
           <p id="tiempo-total" class="ayuda" style="margin:16px 0 0"></p>
@@ -290,6 +319,7 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
 </div>
 
 <dialog id="dlg" aria-labelledby="dlg-t"><h2 id="dlg-t"></h2><p id="dlg-x"></p>
+  <div id="dlg-campos"></div><p id="dlg-error" role="alert" hidden></p>
   <div id="dlg-escribir" class="campo" hidden><label for="dlg-in" id="dlg-in-l"></label><input type="text" id="dlg-in" autocomplete="off" autocapitalize="characters"></div>
   <div id="dlg-b" class="dlg-botones"></div></dialog>
 
@@ -297,13 +327,17 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
 
 <script>
 'use strict';
-const VERSION = '0.1.3';
-const ETAPAS = ['MP recibida', 'MP liberada', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
-// Formato fijo del CSV para todas las fases; las columnas sin dato en fase 1 salen vacías.
+const VERSION = '0.2.0';
+const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
+const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
+const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
+const UNIDADES = ['Kg', 'Lt', 'Unidades'];
+// Formato fijo del CSV para todas las fases; las columnas sin dato salen vacías. Las nuevas van al final para no mover las anteriores.
 const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo','dispositivo','sesion_id','origen','anulado',
   'orden','cliente','oc','producto','area','etapa','equipo','causa','inicio','llega_mtto','fin','minutos','min_respuesta','min_reparacion',
   'cant_entra','cant_sale','unidad','merma','merma_pct','fecha_oc','fecha_pedida','fecha_salida','cant_pedida','cant_entregada',
-  'a_tiempo','completo','otif','base_otif','version_app','nota'];
+  'a_tiempo','completo','otif','base_otif','version_app','nota',
+  'turno','documento','procedencia','consolidada','cant_recibida','cant_utilizada','tarimas_pt','tarimas_salida','destino'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador' };
 
@@ -343,6 +377,7 @@ function preguntar(titulo, texto, botones, escribir){
   const d = $('dlg');
   $('dlg-t').textContent = titulo; $('dlg-x').textContent = texto || '';
   $('dlg-escribir').hidden = !escribir; $('dlg-in').value = '';
+  $('dlg-campos').replaceChildren(); $('dlg-error').hidden = true;
   if (escribir) $('dlg-in-l').textContent = `Para confirmar, escribe ${escribir}`;
   return new Promise(res => {
     const fin = v => { d.oncancel = null; if (d.open) d.close(); res(v); };
@@ -359,6 +394,54 @@ function preguntar(titulo, texto, botones, escribir){
   });
 }
 const avisar = (texto, titulo = 'Aviso') => preguntar(titulo, texto, [{ v: 'ok', t: 'Entendido', c: 'prim' }]);
+
+// Datos de una etapa en la misma ventana. campos: [{k, label, tipo: 'num'|'entero'|'opc', opciones}]; todos obligatorios.
+// Regresa {k: valor} o null si se cancela. No se cierra hasta que todo esté lleno y sea válido.
+function pedirDatos(titulo, texto, campos){
+  const p = preguntar(titulo, texto, [{ v: 'ok', t: 'Guardar', c: 'prim' }, { v: null, t: 'Cancelar' }]);
+  const cont = $('dlg-campos');
+  for (const c of campos) {
+    const div = document.createElement('div'); div.className = 'campo';
+    if (c.tipo === 'opc') {
+      const fs = document.createElement('fieldset'); fs.className = 'segmentado';
+      const lg = document.createElement('legend'); lg.textContent = c.label; fs.append(lg);
+      const lb = document.createElement('label'); lb.textContent = c.label;
+      for (const op of c.opciones) {
+        const l = document.createElement('label'), i = document.createElement('input'), s = document.createElement('span');
+        i.type = 'radio'; i.name = 'dc-' + c.k; i.value = op; s.textContent = op; l.append(i, s); fs.append(l);
+      }
+      div.append(lb, fs);
+    } else {
+      const lb = document.createElement('label'), i = document.createElement('input');
+      lb.textContent = c.label; lb.htmlFor = 'dc-' + c.k;
+      i.type = 'number'; i.id = 'dc-' + c.k; i.min = '0'; i.step = c.tipo === 'entero' ? '1' : 'any';
+      i.inputMode = c.tipo === 'entero' ? 'numeric' : 'decimal';
+      div.append(lb, i);
+    }
+    cont.append(div);
+  }
+  let resultado = null;
+  const btn = $('dlg-b').firstChild, guardarOrig = btn.onclick;
+  btn.onclick = () => {
+    const datos = {};
+    for (const c of campos) {
+      if (c.tipo === 'opc') {
+        const sel = cont.querySelector(`input[name="dc-${c.k}"]:checked`);
+        if (!sel) return falta(`Elige: ${c.label}.`);
+        datos[c.k] = sel.value;
+      } else {
+        const v = $('dc-' + c.k).value, n = Number(v);
+        if (v === '' || !(n > 0)) return falta(`Escribe ${c.label.toLowerCase()} (mayor que 0).`);
+        if (c.tipo === 'entero' && !Number.isInteger(n)) return falta(`${c.label}: solo números enteros.`);
+        datos[c.k] = n;
+      }
+    }
+    resultado = datos; guardarOrig();
+  };
+  const falta = m => { $('dlg-error').textContent = m; $('dlg-error').hidden = false; };
+  const primero = cont.querySelector('input'); if (primero && primero.type === 'number') primero.focus();
+  return p.then(v => v === 'ok' ? resultado : null);
+}
 
 let usuario = leer(K.usuario, null);   // {nombre, dispositivo}
 let registros = leer(K.registros, []);
@@ -381,7 +464,7 @@ function nuevoId(){ return `${slug(usuario.dispositivo)}-${Date.now().toString(3
 function nuevoRegistro(campos){
   const ahora = isoLocal(new Date());
   const r = Object.assign({ id: nuevoId(), tipo: '', fecha_hora_evento: ahora, fecha_hora_captura: ahora,
-    capturo: usuario.nombre, dispositivo: usuario.dispositivo, sesion_id: sesion ? sesion.id : '',
+    capturo: usuario.nombre, dispositivo: usuario.dispositivo, sesion_id: sesion ? sesion.id : '', turno: sesion && sesion.turno || '',
     origen: 'observado', anulado: 'no', version_app: VERSION }, campos);
   registros.push(r);
   if (!guardar(K.registros, registros)) { registros.pop(); return null; }
@@ -411,20 +494,33 @@ function etapasDe(orden){
 const anteriorRegistrada = (lista, i) => { for (let j = i - 1; j >= 0; j--) if (lista[j]) return j; return -1; };
 
 // ---------- Sesión de observación ----------
-function iniciarSesion(desde){
-  const id = 'S-' + nuevoId();
+async function iniciarSesion(desde){
   const ahora = typeof desde === 'string' ? desde : isoLocal(new Date()); // al registrar, la observación arranca con el toque
-  const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora });
-  if (!r) return;
-  sesion = { id, inicio: ahora };
+  const turno = await preguntar('¿En qué turno estás?', 'Queda en la observación y en cada registro. En turno noche solo se registran: ' + NOCHE.join(', ') + '.',
+    [{ v: 'mañana', t: 'Mañana', c: 'prim' }, { v: 'tarde', t: 'Tarde', c: 'prim' }, { v: 'noche', t: 'Noche', c: 'prim' }, { v: null, t: 'Cancelar' }]);
+  if (!turno) return false;
+  const id = 'S-' + nuevoId();
+  const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora, turno });
+  if (!r) return false;
+  sesion = { id, inicio: ahora, turno };
   if (!guardar(K.sesion, sesion)) { sesion = null; anular(r); }
   render();
+  return !!sesion;
 }
 async function terminarSesion(){
-  if (await preguntar('Terminar la observación', 'Se guarda la hora de fin. Lo que registres después ya no queda ligado a esta observación.',
-    [{ v: 'si', t: 'Terminar observación', c: 'prim' }, { v: null, t: 'Seguir observando' }]) !== 'si') return;
   const r = registros.find(x => x.tipo === 'sesion' && x.sesion_id === sesion.id);
-  if (r && !actualizar(r, { fin: isoLocal(new Date()) })) return;
+  const hechos = registros.filter(x => x.tipo !== 'sesion' && x.sesion_id === sesion.id).length;
+  if (!hechos) { // poka-yoke: una observación sin registros solo infla el CSV
+    if (await preguntar('No registraste nada', 'Esta observación no tiene ningún registro. Si la terminas así, se descarta y no sale en el CSV.',
+      [{ v: null, t: 'Seguir observando', c: 'prim' }, { v: 'descartar', t: 'Descartar la observación', c: 'borde-peligro' }]) !== 'descartar') return;
+    const antes = registros;
+    registros = registros.filter(x => x !== r);
+    if (!guardar(K.registros, registros)) { registros = antes; return; }
+  } else {
+    if (await preguntar('Terminar la observación', `Llevas ${cuenta(hechos, 'registro')} en esta observación. Se guarda la hora de fin; lo que registres después ya no queda ligado a ella.`,
+      [{ v: 'si', t: 'Terminar observación', c: 'prim' }, { v: null, t: 'Seguir observando' }]) !== 'si') return;
+    if (r && !actualizar(r, { fin: isoLocal(new Date()) })) return;
+  }
   const previa = sesion; sesion = null;
   if (!guardar(K.sesion, null)) sesion = previa;
   render();
@@ -441,7 +537,7 @@ function renderBarra(){
   s.textContent = `${usuario.nombre} · ${usuario.dispositivo}`;
   const btn = document.createElement('button'); btn.type = 'button';
   if (sesion) {
-    t.textContent = `Observando desde ${hora(sesion.inicio)} · ${Math.max(0, Math.floor(minutosEntre(sesion.inicio, isoLocal(new Date()))))} min`;
+    t.textContent = `Observando desde ${hora(sesion.inicio)} · ${Math.max(0, Math.floor(minutosEntre(sesion.inicio, isoLocal(new Date()))))} min` + (sesion.turno ? ` · turno ${sesion.turno}` : '');
     btn.className = 'btn'; btn.textContent = 'Terminar observación'; btn.onclick = terminarSesion;
   } else {
     t.textContent = 'Sin observación activa';
@@ -522,76 +618,145 @@ $('btn-borrar-orden').onclick = async () => {
 
 const origenSel = () => document.querySelector('input[name=origen]:checked').value;
 document.querySelectorAll('input[name=origen]').forEach(el => el.onchange = () => {
-  const manual = origenSel() !== 'observado';
+  const origen = origenSel(), manual = origen !== 'observado';
   $('hora-manual').hidden = !manual;
+  $('campo-doc').hidden = origen !== 'documento';
   if (manual && !$('in-evento').value) $('in-evento').value = isoLocal(new Date()).slice(0, 16);
 });
-function reiniciarOrigen(){ document.querySelector('input[name=origen][value=observado]').checked = true; $('hora-manual').hidden = true; $('in-evento').value = ''; }
+function reiniciarOrigen(){
+  document.querySelector('input[name=origen][value=observado]').checked = true;
+  $('hora-manual').hidden = true; $('campo-doc').hidden = true; $('in-evento').value = ''; $('in-doc').value = '';
+}
 
 // Poka-yoke de etapas: solo la siguiente se registra de un toque; una registrada no se duplica (se rehace);
-// las posteriores piden saltar; una que ya pasó no puede ser "observada" ahora.
-const estadoEtapas = lista => { const ultima = lista.reduce((u, x, i) => x ? i : u, -1); return { ultima, siguiente: ultima + 1 < ETAPAS.length ? ultima + 1 : -1 }; };
+// saltar deja las etapas sin dato sin registrar la que tocaste; una que ya pasó no puede ser "observada" ahora.
+// Estado por etapa: 'hecha' (registro vigente) · 'noaplica' (MP liberada cuando la MP vino consolidada) · 'saltada' · null.
+function estadoOrden(o){
+  const lista = etapasDe(o.orden), saltadas = o.saltadas || [];
+  const est = ETAPAS.map((e, i) => lista[i] ? 'hecha' : saltadas.includes(e) ? 'saltada' : null);
+  if (!lista[1] && lista[0] && lista[0].consolidada === 'sí') est[1] = 'noaplica';
+  const ultima = est.reduce((u, x, i) => x ? i : u, -1);
+  return { lista, est, ultima, siguiente: ultima + 1 < ETAPAS.length ? ultima + 1 : -1 };
+}
 const cuenta = (n, uno, varios = uno + 's') => `${n} ${n === 1 ? uno : varios}`;
 const lista3 = xs => xs.map(x => `«${x}»`).join(', ');
+const bloqueadaDeNoche = etapa => sesion && sesion.turno === 'noche' && !NOCHE.includes(etapa);
 let pausaHasta = 0; // anti doble toque
 
-async function tocarEtapa(i){
-  const o = orden();
+async function tocarEtapa(o, i){
   if (!o || Date.now() < pausaHasta) return;
-  const lista = etapasDe(o.orden), { ultima, siguiente } = estadoEtapas(lista);
-  if (lista[i]) return rehacerDesde(i, lista);
+  const { lista, est, ultima, siguiente } = estadoOrden(o);
+  if (est[i] === 'hecha') return rehacerDesde(o, i, lista);
+  if (est[i] === 'noaplica') {
+    await avisar('La MP vino consolidada, así que MP liberada no aplica en esta orden.\nSi eso está mal, toca «MP recibida» y rehazla.', 'No aplica');
+    return;
+  }
+  if (bloqueadaDeNoche(ETAPAS[i])) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
   if (i < ultima && origenSel() === 'observado') {
     await avisar(`«${ETAPAS[i]}» ya pasó: hay etapas posteriores registradas, así que no se puede marcar como observada ahora.\n\nElige Documento o Testimonio arriba, escribe la hora en "¿Cuándo pasó?" y vuelve a tocarla.`, 'Esta etapa ya pasó');
     return;
   }
   if (i > siguiente && siguiente >= 0) {
     const saltadas = ETAPAS.slice(siguiente, i);
-    if (await preguntar(saltadas.length === 1 ? 'Saltar una etapa' : `Saltar ${saltadas.length} etapas`,
-      `${lista3(saltadas)} ${saltadas.length === 1 ? 'quedará' : 'quedarán'} sin dato.\nHazlo solo si no se pudo observar; después se puede llenar con Documento o Testimonio.`,
-      [{ v: 'si', t: `Saltar y registrar «${ETAPAS[i]}»` }, { v: null, t: `Cancelar`, c: 'prim' }]) !== 'si') return;
+    const r = await preguntar(`«${ETAPAS[i]}» todavía no le toca`,
+      `Antes ${saltadas.length === 1 ? 'va' : 'van'} ${lista3(saltadas)}.\n\n` +
+      `Saltar: ${saltadas.length === 1 ? 'esa etapa queda' : 'esas etapas quedan'} sin dato (no se observaron) y «${ETAPAS[i]}» queda como la siguiente, sin registrarla.\n` +
+      `Saltar y registrar: además guarda «${ETAPAS[i]}» con la hora de ahora.`,
+      [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'saltar', t: `Solo saltar ${saltadas.length === 1 ? 'esa etapa' : 'esas etapas'}` },
+       { v: 'registrar', t: `Saltar y registrar «${ETAPAS[i]}» ahora` }]);
+    if (!r) return;
+    if (!guardarTodo(() => { o.saltadas = [...new Set([...(o.saltadas || []), ...saltadas])]; })) return;
+    if (r === 'saltar') { render(); aviso(`${o.orden}: ${cuenta(saltadas.length, 'etapa saltada', 'etapas saltadas')}. Sigue «${ETAPAS[i]}».`); return; }
   }
-  return registrarEtapa(i, lista);
+  return registrarEtapa(o, i, lista);
 }
 
-async function registrarEtapa(i, lista){
-  const o = orden(), origen = origenSel();
-  let evento = isoLocal(new Date());
+// Datos que pide cada etapa; regresa {} si no pide nada y null si se cancela.
+async function datosEtapa(o, etapa, lista){
+  const titulo = `${o.orden} · ${etapa}`;
+  const revisar = async texto => await preguntar('Revisa la cantidad', texto, [{ v: null, t: 'Corregir', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) === 'si';
+  if (etapa === 'MP recibida') {
+    const d = await pedirDatos(titulo, '', [
+      { k: 'cant_recibida', label: 'Cantidad recibida', tipo: 'num' },
+      { k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES },
+      { k: 'procedencia', label: 'Procedencia de la MP', tipo: 'opc', opciones: LUGARES },
+      { k: 'consolidada', label: '¿Ya viene consolidada?', tipo: 'opc', opciones: ['Sí', 'No'] }]);
+    return d && Object.assign(d, { consolidada: d.consolidada === 'Sí' ? 'sí' : 'no' });
+  }
+  if (etapa === 'Inicio de producción') {
+    const mp = lista[0] && lista[0].cant_recibida ? lista[0] : null;
+    const campos = [{ k: 'cant_utilizada', label: mp ? `Cantidad utilizada (${mp.unidad})` : 'Cantidad utilizada', tipo: 'num' }];
+    if (!mp) campos.push({ k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES });
+    for (;;) {
+      const d = await pedirDatos(titulo, mp ? `Se recibieron ${mp.cant_recibida} ${mp.unidad}.` : 'Esta orden no tiene cantidad recibida registrada.', campos);
+      if (!d) return null;
+      if (mp) d.unidad = mp.unidad; // misma unidad que la recibida: no se mezclan unidades
+      if (!mp || d.cant_utilizada <= mp.cant_recibida || await revisar(`Utilizada (${d.cant_utilizada} ${mp.unidad}) es mayor que la recibida (${mp.cant_recibida} ${mp.unidad}).`)) return d;
+    }
+  }
+  if (etapa === 'PT listo') return pedirDatos(titulo, '', [{ k: 'tarimas_pt', label: 'Tarimas que pasan a PT desde Fin de producción', tipo: 'entero' }]);
+  if (etapa === 'Salida') {
+    const pt = lista[ETAPAS.indexOf('PT listo')] && lista[ETAPAS.indexOf('PT listo')].tarimas_pt;
+    for (;;) {
+      const d = await pedirDatos(titulo, pt ? `En PT hay ${cuenta(pt, 'tarima')}.` : '', [
+        { k: 'tarimas_salida', label: 'Tarimas que salen desde PT', tipo: 'entero' },
+        { k: 'destino', label: 'Destino del PT', tipo: 'opc', opciones: LUGARES }]);
+      if (!d) return null;
+      if (!pt || d.tarimas_salida <= pt || await revisar(`Salen ${d.tarimas_salida} tarimas, pero a PT pasaron ${pt}.`)) return d;
+    }
+  }
+  return {};
+}
+
+async function registrarEtapa(o, i, lista){
+  const origen = origenSel(), etapa = ETAPAS[i];
+  let evento = isoLocal(new Date()), documento = '';
   if (origen !== 'observado') {
     const v = $('in-evento').value;
     if (!v) { await avisar('Escribe en "¿Cuándo pasó?" la hora que dice el documento o el testimonio.', 'Falta la hora'); $('in-evento').focus(); return; }
     evento = v.length === 16 ? v + ':00' : v.slice(0, 19);
     if (evento > isoLocal(new Date())) { await avisar('La hora del evento no puede ser en el futuro.', 'Revisa la hora'); return; }
+    if (origen === 'documento' && !(documento = $('in-doc').value.trim())) {
+      await avisar('Escribe el nombre o folio del documento de donde sale la hora.', 'Falta el documento'); $('in-doc').focus(); return;
+    }
   } else if (!sesion) {
     const r = await preguntar('No hay observación activa', 'Lo que observas debe quedar ligado a una observación para poder decir "N eventos en X horas observadas".',
       [{ v: 'iniciar', t: 'Iniciar observación y registrar', c: 'ok' }, { v: 'sin', t: 'Registrar sin observación' }, { v: null, t: 'Cancelar' }]);
-    if (!r) return;
-    if (r === 'iniciar') { iniciarSesion(evento); if (!sesion) return; }
+    if (!r || (r === 'iniciar' && !(await iniciarSesion(evento)))) return;
+    if (bloqueadaDeNoche(etapa)) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
   }
   const j = anteriorRegistrada(lista, i), k = lista.findIndex((x, n) => n > i && x);
   const choca = j >= 0 && evento < lista[j].fecha_hora_evento ? `es anterior a «${ETAPAS[j]}» (${hora(lista[j].fecha_hora_evento)})`
               : k >= 0 && evento > lista[k].fecha_hora_evento ? `es posterior a «${ETAPAS[k]}» (${hora(lista[k].fecha_hora_evento)})` : '';
-  if (choca && await preguntar('Revisa la hora', `La hora de «${ETAPAS[i]}» (${hora(evento)}) ${choca}. Casi siempre es un error de captura.`,
+  if (choca && await preguntar('Revisa la hora', `La hora de «${etapa}» (${hora(evento)}) ${choca}. Casi siempre es un error de captura.`,
     [{ v: null, t: 'Corregir la hora', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) !== 'si') return;
+  const extra = await datosEtapa(o, etapa, lista); // la hora ya quedó fijada en el toque
+  if (!extra) return;
 
-  const r = nuevoRegistro({ tipo: 'etapa', etapa: ETAPAS[i], orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, origen, fecha_hora_evento: evento });
+  const r = nuevoRegistro(Object.assign({ tipo: 'etapa', etapa, orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto,
+    origen, documento, fecha_hora_evento: evento }, extra));
   if (!r) return;
+  if ((o.saltadas || []).includes(etapa)) { o.saltadas = o.saltadas.filter(e => e !== etapa); guardar(K.ordenes, ordenes); }
   reiniciarOrigen();
   pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
-  aviso(`Registrado: ${ETAPAS[i]} · ${hora(evento)}`, r);
+  aviso(`${o.orden} · ${etapa} · ${hora(evento)}`, r);
 }
 
-async function rehacerDesde(i, lista){
+async function rehacerDesde(o, i, lista){
   const r = lista[i], afectadas = lista.filter((x, n) => x && n >= i);
   const despues = afectadas.slice(1).map(x => x.etapa);
   const origen = { observado: 'observado', documento: 'documento', testimonio: 'testimonio, por confirmar' }[r.origen];
-  if (await preguntar(`«${ETAPAS[i]}»`,
+  if (await preguntar(`${o.orden} · «${ETAPAS[i]}»`,
     `Registrada a las ${hora(r.fecha_hora_evento)} (${origen}) por ${r.capturo}.\n\n` +
     (despues.length ? `Rehacer anula esta etapa y las siguientes: ${lista3(despues)}.` : 'Rehacer anula esta etapa.') +
     ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.',
     [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Rehacer desde aquí', c: 'borde-peligro' }]) !== 'si') return;
   const ahora = isoLocal(new Date());
-  if (!guardarTodo(() => afectadas.forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; }))) return;
-  render(); aviso(`Listo: registra de nuevo «${ETAPAS[i]}».`);
+  if (!guardarTodo(() => {
+    afectadas.forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; });
+    o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < i);
+  })) return;
+  render(); aviso(`${o.orden}: registra de nuevo «${ETAPAS[i]}».`);
 }
 
 function etiquetaOrigen(origen){
@@ -601,12 +766,20 @@ function etiquetaOrigen(origen){
   s.textContent = origen === 'testimonio' ? 'Por confirmar (testimonio)' : 'Documento';
   return s;
 }
+function resumenDatos(r){
+  return {
+    'MP recibida': r.cant_recibida && `${r.cant_recibida} ${r.unidad} · de ${r.procedencia} · consolidada: ${r.consolidada}`,
+    'Inicio de producción': r.cant_utilizada && `${r.cant_utilizada} ${r.unidad} utilizados`,
+    'PT listo': r.tarimas_pt && `${cuenta(r.tarimas_pt, 'tarima')} a PT`,
+    'Salida': r.tarimas_salida && `${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}`
+  }[r.etapa] || '';
+}
 
 function renderOrden(){
   const sel = $('sel-orden');
   const vigentes = [], terminadas = [];
   const activas = ordenes.filter(o => !o.anulada);
-  for (const o of activas) (etapasDe(o.orden)[5] ? terminadas : vigentes).push(o);
+  for (const o of activas) (etapasDe(o.orden)[ETAPAS.length - 1] ? terminadas : vigentes).push(o);
   const opcion = (v, t) => { const op = document.createElement('option'); op.value = v; op.textContent = t; return op; };
   const items = [opcion('', activas.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una')];
   const grupo = (titulo, lista) => { if (!lista.length) return; const g = document.createElement('optgroup'); g.label = titulo;
@@ -616,31 +789,54 @@ function renderOrden(){
   if (!orden()) ordenActual = '';
   sel.value = ordenActual;
 
+  // Tablero: cada orden abierta con el botón de su siguiente etapa, para seguir varias a la vez sin cambiar de orden.
+  $('tablero').hidden = !vigentes.length;
+  $('tablero-lista').replaceChildren(...vigentes.slice().reverse().map(x => {
+    const { est, siguiente } = estadoOrden(x);
+    const fila = document.createElement('div'); fila.className = 'tablero-fila' + (x.orden === ordenActual ? ' actual' : '');
+    const quien = document.createElement('button'); quien.type = 'button'; quien.className = 'quien';
+    const b = document.createElement('b'); b.textContent = x.orden;
+    const s = document.createElement('span'); s.textContent = [`${est.filter(Boolean).length}/${ETAPAS.length}`, x.cliente, x.producto].filter(Boolean).join(' · ');
+    quien.append(b, s); quien.onclick = () => elegirOrden(x.orden);
+    fila.append(quien);
+    if (siguiente >= 0) {
+      const btn = document.createElement('button'); btn.type = 'button';
+      btn.className = 'btn ' + (bloqueadaDeNoche(ETAPAS[siguiente]) ? '' : 'prim');
+      btn.textContent = ETAPAS[siguiente];
+      btn.setAttribute('aria-label', `Registrar ${ETAPAS[siguiente]} de ${x.orden}`);
+      btn.disabled = Date.now() < pausaHasta;
+      btn.onclick = () => { if (x.orden !== ordenActual) elegirOrden(x.orden); tocarEtapa(x, siguiente); };
+      fila.append(btn);
+    }
+    return fila;
+  }));
+
   const o = orden();
   $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
 
   $('acciones-orden').hidden = !o;
-  const lista = o ? etapasDe(o.orden) : ETAPAS.map(() => null);
-  const { ultima, siguiente } = o ? estadoEtapas(lista) : { ultima: -1, siguiente: -1 };
+  const { lista, est, ultima, siguiente } = o ? estadoOrden(o) : { lista: ETAPAS.map(() => null), est: ETAPAS.map(() => null), ultima: -1, siguiente: -1 };
   $('etapas').classList.toggle('pausa', Date.now() < pausaHasta);
   $('etapas').replaceChildren(...ETAPAS.map((nombre, i) => {
     const b = document.createElement('button'); b.type = 'button';
-    const tipo = lista[i] ? 'hecha' : !o ? 'bloqueada' : i === siguiente ? 'siguiente' : i < ultima ? 'faltante' : 'bloqueada';
+    const tipo = !o ? 'bloqueada' : est[i] === 'hecha' ? 'hecha' : est[i] === 'noaplica' ? 'noaplica'
+               : i === siguiente ? 'siguiente' : (est[i] === 'saltada' || i < ultima) ? 'faltante' : 'bloqueada';
     b.className = 'etapa ' + tipo;
     b.disabled = !o;
     const num = document.createElement('span'); num.className = 'num'; num.setAttribute('aria-hidden', 'true');
-    if (lista[i]) num.innerHTML = '<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M5 12l5 5 9-10"/></svg>'; else num.textContent = i + 1;
+    if (tipo === 'hecha') num.innerHTML = '<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M5 12l5 5 9-10"/></svg>'; else num.textContent = i + 1;
     const txt = document.createElement('span'); txt.className = 'txt';
     const n = document.createElement('b'); n.textContent = nombre;
     const s = document.createElement('span');
     s.textContent = {
       hecha: lista[i] && `${hora(lista[i].fecha_hora_evento)} · toca para rehacer`,
-      siguiente: 'Siguiente · toca para registrar la hora',
-      faltante: 'Sin dato · solo con Documento o Testimonio',
+      noaplica: 'No aplica · la MP vino consolidada',
+      siguiente: bloqueadaDeNoche(nombre) ? 'Siguiente · no se registra en turno noche' : 'Siguiente · toca para registrar la hora',
+      faltante: `${est[i] === 'saltada' ? 'Saltada' : 'Sin dato'} · solo con Documento o Testimonio`,
       bloqueada: o ? `Primero «${ETAPAS[siguiente]}»` : 'Elige o crea una orden'
     }[tipo];
     txt.append(n, s); b.append(num, txt);
-    b.onclick = () => tocarEtapa(i);
+    b.onclick = () => tocarEtapa(o, i);
     return b;
   }));
 
@@ -650,7 +846,11 @@ function renderOrden(){
     const r = lista[i];
     const li = document.createElement('li');
     const t = document.createElement('div'); const b = document.createElement('b'); b.textContent = nombre; t.append(b);
-    if (!r) { li.className = 'vacia'; t.append(' — pendiente'); li.append(t); ol.append(li); return; }
+    if (!r) {
+      li.className = 'vacia';
+      t.append({ noaplica: ' — no aplica', saltada: ' — saltada' }[est[i]] || ' — pendiente');
+      li.append(t); ol.append(li); return;
+    }
     t.append(` · ${hora(r.fecha_hora_evento)}`);
     const et = etiquetaOrigen(r.origen); if (et) t.append(et);
     li.append(t);
@@ -661,6 +861,8 @@ function renderOrden(){
       m.textContent = min >= 0 ? `+${min} min desde ${ETAPAS[j]}` : `${-min} min ANTES de ${ETAPAS[j]}: revisar`;
       li.append(m);
     }
+    const datos = [resumenDatos(r), r.documento && `Documento: ${r.documento}`].filter(Boolean).join(' · ');
+    if (datos) { const d = document.createElement('div'); d.textContent = datos; li.append(d); }
     const quien = document.createElement('div'); quien.className = 'ayuda'; quien.textContent = `Capturó: ${r.capturo}`; li.append(quien);
     ol.append(li);
   });

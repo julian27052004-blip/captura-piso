@@ -1,5 +1,5 @@
 // Guarda la app al instalar y después la sirve sin red. Cambia VERSION en cada publicación.
-const VERSION = '0.1.3';
+const VERSION = '0.2.0';
 const CACHE = 'captura-' + VERSION;
 const ARCHIVOS = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 

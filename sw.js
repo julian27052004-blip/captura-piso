@@ -1,10 +1,11 @@
 // Guarda la app al instalar y después la sirve sin red. Cambia VERSION en cada publicación.
-const VERSION = '0.1.2';
+const VERSION = '0.1.3';
 const CACHE = 'captura-' + VERSION;
 const ARCHIVOS = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
+  // cache 'reload': sin esto el navegador puede guardar el index.html viejo de su propia caché HTTP bajo la versión nueva
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

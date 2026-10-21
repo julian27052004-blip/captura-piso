@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F172A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Captura">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Captura en piso</title>
+<style>
+:root{
+  --bg:#F1F5F9; --card:#FFFFFF; --fg:#0F172A; --muted:#475569; --border:#CBD5E1;
+  --primary:#0F172A; --on-primary:#FFFFFF;
+  --accent:#15803D; --on-accent:#FFFFFF; --accent-soft:#DCFCE7; --accent-fg:#14532D;
+  --warn-bg:#FEF3C7; --warn-fg:#78350F; --warn-border:#F59E0B;
+  --danger:#B91C1C; --on-danger:#FFFFFF; --ring:#2563EB;
+  --radius:14px; --gap:16px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#020617; --card:#0E1223; --fg:#F8FAFC; --muted:#94A3B8; --border:#334155;
+    --primary:#F8FAFC; --on-primary:#0F172A;
+    --accent:#22C55E; --on-accent:#0F172A; --accent-soft:#052E16; --accent-fg:#BBF7D0;
+    --warn-bg:#451A03; --warn-fg:#FDE68A; --warn-border:#B45309;
+    --danger:#EF4444; --on-danger:#0F172A; --ring:#60A5FA;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg)}
+body{font:18px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0 0 12px;line-height:1.25}
+h1{font-size:26px} h2{font-size:21px} h3{font-size:18px}
+p{margin:0 0 12px}
+svg.ic{width:26px;height:26px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Estructura: vertical = barra abajo; horizontal ancho = riel a la izquierda */
+#app{display:grid;height:100vh;height:100dvh;grid-template-rows:auto 1fr auto;grid-template-areas:"barra" "main" "nav"}
+#barra{grid-area:barra}
+main{grid-area:main;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:var(--gap);padding-left:max(var(--gap),env(safe-area-inset-left));padding-right:max(var(--gap),env(safe-area-inset-right))}
+#nav{grid-area:nav;display:flex;background:var(--card);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+#nav button{flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--muted);font-size:15px;font-weight:600}
+#nav button[aria-current="page"]{color:var(--fg);box-shadow:inset 0 3px 0 var(--fg)}
+@media (orientation:landscape) and (min-width:900px){
+  #app{grid-template-columns:112px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"nav barra" "nav main"}
+  #nav{flex-direction:column;justify-content:flex-start;border-top:0;border-right:1px solid var(--border);padding:max(12px,env(safe-area-inset-top)) 0 env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #nav button{flex:none;min-height:88px}
+  #nav button[aria-current="page"]{box-shadow:inset 4px 0 0 var(--fg)}
+}
+#app.sin-nav{grid-template-columns:1fr;grid-template-rows:auto 1fr;grid-template-areas:"barra" "main"}
+
+/* Barra de observación */
+#barra{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px var(--gap);padding-top:max(12px,env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--border)}
+#barra .estado{flex:1 1 260px;min-width:0}
+#barra .estado strong{display:block;font-size:18px}
+#barra .estado span{color:var(--muted);font-size:15px}
+#barra.activa{background:var(--accent-soft);color:var(--accent-fg)}
+#barra.activa .estado span{color:inherit}
+
+/* Componentes */
+.tarjeta{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:var(--gap);margin-bottom:var(--gap)}
+.btn{min-height:56px;padding:0 20px;border-radius:12px;border:2px solid var(--fg);background:var(--card);font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:transform .12s ease,background-color .15s ease}
+.btn:active{transform:scale(.98)}
+.btn.prim{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.btn.ok{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.peligro{background:var(--danger);color:var(--on-danger);border-color:var(--danger)}
+.btn.ancho{width:100%}
+.fila{display:flex;flex-wrap:wrap;gap:12px}
+.fila>.btn{flex:1 1 200px}
+label{display:block;font-weight:700;margin:0 0 6px}
+.campo{margin-bottom:14px}
+.campo small{display:block;color:var(--muted);font-size:15px;margin-top:4px}
+input[type=text],input[type=datetime-local],select{width:100%;min-height:56px;padding:0 14px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:18px}
+input:focus,select:focus{border-color:var(--ring)}
+.req{color:var(--danger)}
+.ayuda{color:var(--muted);font-size:16px}
+.aviso{background:var(--warn-bg);color:var(--warn-fg);border:2px solid var(--warn-border);border-radius:var(--radius);padding:var(--gap);font-weight:700;margin-bottom:var(--gap)}
+.cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:var(--gap)}
+.cifra{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.cifra b{display:block;font-size:32px;line-height:1.1}
+.cifra span{color:var(--muted);font-size:15px}
+dl.datos{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0 0 12px}
+dl.datos dt{color:var(--muted)} dl.datos dd{margin:0;font-weight:600;word-break:break-word}
+
+/* Origen: control segmentado */
+.segmentado{display:flex;border:2px solid var(--fg);border-radius:12px;overflow:hidden;margin:0 0 12px;padding:0}
+.segmentado legend{position:absolute;left:-9999px}
+.segmentado label{flex:1;margin:0;position:relative}
+.segmentado input{position:absolute;opacity:0;inset:0}
+.segmentado span{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 8px;text-align:center;font-weight:700;font-size:16px}
+.segmentado label+label span{border-left:2px solid var(--fg)}
+.segmentado input:checked+span{background:var(--primary);color:var(--on-primary)}
+.segmentado input:focus-visible+span{outline:3px solid var(--ring);outline-offset:-5px}
+
+/* Orden */
+.orden-grid{display:grid;gap:var(--gap)}
+@media (min-width:900px) and (orientation:landscape){
+  .orden-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}
+  .etapas{grid-template-columns:1fr 1fr} /* las 6 etapas caben sin desplazar en horizontal */
+}
+.orden-resumen{color:var(--muted);font-size:16px;margin-top:8px}
+.etapas{display:grid;gap:12px}
+.etapa{min-height:76px;width:100%;display:flex;align-items:center;gap:14px;padding:10px 16px;border:2px solid var(--border);border-radius:var(--radius);background:var(--card);text-align:left}
+.etapa .num{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;border:2px solid currentColor}
+.etapa .txt{flex:1;min-width:0}
+.etapa .txt b{display:block;font-size:20px}
+.etapa .txt span{font-size:15px;color:var(--muted)}
+.etapa.siguiente{border-color:var(--primary);background:var(--primary);color:var(--on-primary)}
+.etapa.siguiente .txt span{color:inherit;opacity:.85}
+.etapa.hecha{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-fg)}
+.etapa.hecha .txt span{color:inherit}
+.etapa:active{transform:scale(.99)}
+ol.tiempo{list-style:none;margin:0;padding:0}
+ol.tiempo li{position:relative;padding:0 0 18px 28px;border-left:3px solid var(--border);margin-left:8px}
+ol.tiempo li:last-child{border-left-color:transparent;padding-bottom:0}
+ol.tiempo li::before{content:"";position:absolute;left:-10px;top:4px;width:17px;height:17px;border-radius:50%;background:var(--accent)}
+ol.tiempo li.vacia::before{background:var(--card);border:3px solid var(--border);width:11px;height:11px}
+ol.tiempo li.vacia{color:var(--muted)}
+ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-weight:700;font-size:15px}
+.etiqueta{display:inline-block;padding:2px 10px;border-radius:999px;font-size:14px;font-weight:700;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-border);margin-left:6px}
+.etiqueta.doc{background:var(--bg);color:var(--fg);border-color:var(--border)}
+
+/* Avisos flotantes */
+#error{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:30;background:var(--danger);color:var(--on-danger);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#error p{flex:1;margin:0}
+#error button{min-height:48px;border:2px solid currentColor;background:none;border-radius:10px;padding:0 14px;font-weight:700;color:inherit}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:20;width:min(560px,calc(100% - 24px));background:var(--primary);color:var(--on-primary);border-radius:var(--radius);padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#toast p{flex:1;margin:0;font-weight:600}
+#toast button{min-height:52px;padding:0 18px;border-radius:10px;border:2px solid currentColor;background:none;color:inherit;font-weight:800}
+@media (orientation:landscape) and (min-width:900px){#toast{bottom:calc(20px + env(safe-area-inset-bottom))}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="error" role="alert" hidden><p id="error-txt"></p><button type="button" id="error-ok">Entendido</button></div>
+
+<div id="app">
+  <header id="barra" aria-live="polite"></header>
+
+  <main>
+    <!-- 0. Inicio -->
+    <section id="v-inicio" hidden>
+      <div class="tarjeta" style="max-width:640px;margin:0 auto">
+        <h1>Captura en piso</h1>
+        <p class="ayuda">Se escribe una sola vez. Va en cada registro y en el nombre del archivo exportado.</p>
+        <form id="form-inicio" novalidate>
+          <div class="campo">
+            <label for="in-nombre">Tu nombre <span class="req">*</span></label>
+            <input type="text" id="in-nombre" autocomplete="name" autocapitalize="words" required>
+          </div>
+          <div class="campo">
+            <label for="in-dispositivo">Nombre de este dispositivo <span class="req">*</span></label>
+            <input type="text" id="in-dispositivo" placeholder="Ej. iPad-1" autocapitalize="off" required>
+            <small>Usa siempre el mismo nombre para esta tablet.</small>
+          </div>
+          <button type="submit" class="btn prim ancho">Empezar</button>
+          <button type="button" id="inicio-cancelar" class="btn ancho" style="margin-top:12px" hidden>Cancelar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 1. Orden -->
+    <section id="v-orden" hidden>
+      <div class="orden-grid">
+        <div>
+          <div class="tarjeta">
+            <label for="sel-orden">Orden de producción o lote</label>
+            <div class="fila">
+              <select id="sel-orden" style="flex:1 1 240px"></select>
+              <button type="button" id="btn-nueva" class="btn" style="flex:0 0 auto">+ Nueva orden</button>
+            </div>
+            <div id="orden-resumen" class="orden-resumen"></div>
+          </div>
+
+          <form id="form-orden" class="tarjeta" novalidate hidden>
+            <h2>Nueva orden</h2>
+            <div class="campo"><label for="no-orden">Orden o lote <span class="req">*</span></label><input type="text" id="no-orden" autocapitalize="characters" required></div>
+            <div class="campo"><label for="no-cliente">Cliente</label><input type="text" id="no-cliente" list="dl-cliente"></div>
+            <div class="campo"><label for="no-oc">OC</label><input type="text" id="no-oc" list="dl-oc" autocapitalize="characters"></div>
+            <div class="campo"><label for="no-producto">Producto</label><input type="text" id="no-producto" list="dl-producto"></div>
+            <div class="fila"><button type="submit" class="btn prim">Guardar orden</button><button type="button" id="no-cancelar" class="btn">Cancelar</button></div>
+            <datalist id="dl-cliente"></datalist><datalist id="dl-oc"></datalist><datalist id="dl-producto"></datalist>
+          </form>
+
+          <div class="tarjeta">
+            <fieldset class="segmentado" id="origen">
+              <legend>Origen del dato</legend>
+              <label><input type="radio" name="origen" value="observado" checked><span>Observado</span></label>
+              <label><input type="radio" name="origen" value="documento"><span>Documento</span></label>
+              <label><input type="radio" name="origen" value="testimonio"><span>Testimonio</span></label>
+            </fieldset>
+            <div id="hora-manual" class="campo" hidden>
+              <label for="in-evento">¿Cuándo pasó? <span class="req">*</span></label>
+              <input type="datetime-local" id="in-evento" step="60">
+              <small>Lo observado toma la hora automática. Al guardar, el origen vuelve a "Observado".</small>
+            </div>
+          </div>
+
+          <div id="etapas" class="etapas" aria-label="Etapas de la orden"></div>
+        </div>
+
+        <div class="tarjeta">
+          <h2>Línea de tiempo</h2>
+          <ol id="tiempo" class="tiempo"></ol>
+          <p id="tiempo-total" class="ayuda" style="margin:16px 0 0"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Exportar -->
+    <section id="v-exportar" hidden>
+      <div class="cifras">
+        <div class="cifra"><b id="c-hoy">0</b><span>registros de hoy</span></div>
+        <div class="cifra"><b id="c-pend">0</b><span>sin exportar</span></div>
+        <div class="cifra"><b id="c-total">0</b><span>en total</span></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Exportar CSV</h2>
+        <p class="ayuda">Se abre el menú de compartir: elige Drive o "Guardar en Archivos" y súbelo a la carpeta del equipo. Los datos no salen de la tablet de otra forma.</p>
+        <div class="fila">
+          <button type="button" id="exp-hoy" class="btn prim">Exportar hoy</button>
+          <button type="button" id="exp-todo" class="btn">Exportar todo</button>
+        </div>
+        <p id="exp-ultimo" class="ayuda" style="margin:12px 0 0"></p>
+      </div>
+    </section>
+
+    <!-- Más -->
+    <section id="v-mas" hidden>
+      <div class="aviso" role="note">Si borras el ícono, se borran los datos. Exporta al final de cada recorrido.</div>
+      <div id="no-instalada" class="aviso" hidden>Estás en el navegador, no en la app instalada. Los datos del navegador y los del ícono se guardan por separado: captura siempre desde el ícono de la pantalla de inicio.</div>
+      <div class="tarjeta">
+        <h2>Quién captura</h2>
+        <dl class="datos"><dt>Nombre</dt><dd id="m-nombre"></dd><dt>Dispositivo</dt><dd id="m-disp"></dd></dl>
+        <button type="button" id="m-cambiar" class="btn">Cambiar nombre o dispositivo</button>
+      </div>
+      <div class="tarjeta">
+        <h2>Almacenamiento</h2>
+        <dl class="datos"><dt>Registros</dt><dd id="m-reg"></dd><dt>Protegido contra borrado del sistema</dt><dd id="m-persist">Revisando…</dd><dt>Versión</dt><dd id="m-version"></dd></dl>
+      </div>
+      <div class="tarjeta">
+        <h2>Separador del CSV</h2>
+        <fieldset class="segmentado" id="separador">
+          <legend>Separador del CSV</legend>
+          <label><input type="radio" name="sep" value=";"><span>Punto y coma ( ; )</span></label>
+          <label><input type="radio" name="sep" value=","><span>Coma ( , )</span></label>
+        </fieldset>
+        <p class="ayuda">Si al abrir el CSV en Excel todo queda en una sola columna, cambia el separador y vuelve a exportar.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav id="nav" aria-label="Secciones">
+    <button type="button" data-v="orden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h6"/></svg>Orden</button>
+    <button type="button" data-v="exportar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar</button>
+    <button type="button" data-v="mas"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
+  </nav>
+</div>
+
+<div id="toast" role="status" hidden><p id="toast-txt"></p><button type="button" id="toast-deshacer">Deshacer</button></div>
+
+<script>
+'use strict';
+const VERSION = '0.1.0';
+const ETAPAS = ['MP recibida', 'MP liberada', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
+// Formato fijo del CSV para todas las fases; las columnas sin dato en fase 1 salen vacías.
+const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo','dispositivo','sesion_id','origen','anulado',
+  'orden','cliente','oc','producto','area','etapa','equipo','causa','inicio','llega_mtto','fin','minutos','min_respuesta','min_reparacion',
+  'cant_entra','cant_sale','unidad','merma','merma_pct','fecha_oc','fecha_pedida','fecha_salida','cant_pedida','cant_entregada',
+  'a_tiempo','completo','otif','base_otif','version_app','nota'];
+const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
+  ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador' };
+
+const $ = id => document.getElementById(id);
+
+// ---------- Guardado ----------
+const bloqueadas = new Set(); // llaves que no se pudieron leer: no se sobrescriben para no perder lo que haya
+function error(msg){ $('error-txt').textContent = msg; $('error').hidden = false; }
+$('error-ok').onclick = () => { $('error').hidden = true; };
+function leer(k, def){
+  try { const v = localStorage.getItem(k); return v == null ? def : JSON.parse(v); }
+  catch(e){ bloqueadas.add(k); error('No se pudieron leer los datos guardados. No captures más y avisa al equipo.'); return def; }
+}
+function guardar(k, v){
+  if (bloqueadas.has(k)) { error('No se guardó: los datos de esta tablet no se pudieron leer. Avisa al equipo.'); return false; }
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch(e){
+    error(e && e.name === 'QuotaExceededError'
+      ? 'No se guardó: la memoria está llena. Exporta todo y avisa al equipo.'
+      : 'No se guardó. Revisa que no estés en navegación privada y vuelve a intentar.');
+    return false;
+  }
+}
+
+let usuario = leer(K.usuario, null);   // {nombre, dispositivo}
+let registros = leer(K.registros, []);
+let ordenes = leer(K.ordenes, []);     // [{orden, cliente, oc, producto, creada}]
+let sesion = leer(K.sesion, null);     // {id, inicio}
+let ordenActual = leer(K.ordenActual, '');
+let exportados = new Set(leer(K.exportados, []));
+let vista = 'orden';
+
+// ---------- Fechas ----------
+const pad = n => String(n).padStart(2, '0');
+function isoLocal(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+const hoyStr = () => isoLocal(new Date()).slice(0, 10);
+function hora(iso){ if (!iso) return ''; const t = iso.slice(11, 16); return iso.slice(0, 10) === hoyStr() ? t : `${iso.slice(8,10)}/${iso.slice(5,7)} ${t}`; }
+function minutosEntre(a, b){ return Math.round((new Date(b) - new Date(a)) / 6000) / 10; } // 1 decimal
+const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, '-').replace(/[^A-Za-z0-9_-]/g, '');
+
+// ---------- Registros ----------
+function nuevoId(){ return `${slug(usuario.dispositivo)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`; }
+function nuevoRegistro(campos){
+  const ahora = isoLocal(new Date());
+  const r = Object.assign({ id: nuevoId(), tipo: '', fecha_hora_evento: ahora, fecha_hora_captura: ahora,
+    capturo: usuario.nombre, dispositivo: usuario.dispositivo, sesion_id: sesion ? sesion.id : '',
+    origen: 'observado', anulado: 'no', version_app: VERSION }, campos);
+  registros.push(r);
+  if (!guardar(K.registros, registros)) { registros.pop(); return null; }
+  return r;
+}
+function actualizar(r, cambios){
+  const antes = JSON.stringify(r);
+  Object.assign(r, cambios);
+  if (guardar(K.registros, registros)) return true;
+  Object.keys(r).forEach(k => delete r[k]); Object.assign(r, JSON.parse(antes));
+  return false;
+}
+function anular(r){
+  return actualizar(r, { anulado: 'sí', nota: (r.nota ? r.nota + ' | ' : '') + `anulado por ${usuario.nombre} ${isoLocal(new Date())}` });
+}
+
+// Última etapa vigente (no anulada) de cada paso de una orden
+function etapasDe(orden){
+  const res = ETAPAS.map(() => null);
+  for (const r of registros) {
+    if (r.tipo !== 'etapa' || r.anulado !== 'no' || r.orden !== orden) continue;
+    const i = ETAPAS.indexOf(r.etapa);
+    if (i >= 0 && (!res[i] || r.fecha_hora_captura >= res[i].fecha_hora_captura)) res[i] = r;
+  }
+  return res;
+}
+const anteriorRegistrada = (lista, i) => { for (let j = i - 1; j >= 0; j--) if (lista[j]) return j; return -1; };
+
+// ---------- Sesión de observación ----------
+function iniciarSesion(){
+  const id = 'S-' + nuevoId();
+  const ahora = isoLocal(new Date());
+  const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora });
+  if (!r) return;
+  sesion = { id, inicio: ahora };
+  if (!guardar(K.sesion, sesion)) { sesion = null; anular(r); }
+  render();
+}
+function terminarSesion(){
+  if (!confirm('¿Terminar la observación? Queda guardada la hora de fin.')) return;
+  const r = registros.find(x => x.tipo === 'sesion' && x.sesion_id === sesion.id);
+  if (r && !actualizar(r, { fin: isoLocal(new Date()) })) return;
+  const previa = sesion; sesion = null;
+  if (!guardar(K.sesion, null)) sesion = previa;
+  render();
+}
+function renderBarra(){
+  const b = $('barra');
+  b.replaceChildren();
+  if (!usuario) { b.hidden = true; return; }
+  b.hidden = false;
+  b.classList.toggle('activa', !!sesion);
+  const est = document.createElement('div'); est.className = 'estado';
+  const t = document.createElement('strong');
+  const s = document.createElement('span');
+  s.textContent = `${usuario.nombre} · ${usuario.dispositivo}`;
+  const btn = document.createElement('button'); btn.type = 'button';
+  if (sesion) {
+    t.textContent = `Observando desde ${hora(sesion.inicio)} · ${Math.max(0, Math.floor(minutosEntre(sesion.inicio, isoLocal(new Date()))))} min`;
+    btn.className = 'btn'; btn.textContent = 'Terminar observación'; btn.onclick = terminarSesion;
+  } else {
+    t.textContent = 'Sin observación activa';
+    btn.className = 'btn ok'; btn.textContent = 'Iniciar observación'; btn.onclick = iniciarSesion;
+  }
+  est.append(t, s); b.append(est, btn);
+}
+
+// ---------- Orden ----------
+const orden = () => ordenes.find(o => o.orden === ordenActual) || null;
+function valoresUsados(campo){ return [...new Set(ordenes.map(o => o[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')); }
+function llenarDatalist(id, campo){ $(id).replaceChildren(...valoresUsados(campo).map(v => { const o = document.createElement('option'); o.value = v; return o; })); }
+function elegirOrden(v){ ordenActual = v; guardar(K.ordenActual, v); render(); }
+
+$('sel-orden').onchange = e => elegirOrden(e.target.value);
+$('btn-nueva').onclick = () => {
+  $('form-orden').reset(); $('form-orden').hidden = false;
+  llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto');
+  $('no-orden').focus();
+};
+$('no-cancelar').onclick = () => { $('form-orden').hidden = true; };
+$('form-orden').onsubmit = e => {
+  e.preventDefault();
+  const v = id => $(id).value.trim();
+  const nueva = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto'), creada: isoLocal(new Date()) };
+  if (!nueva.orden) { alert('Escribe la orden o el lote.'); $('no-orden').focus(); return; }
+  const existe = ordenes.find(o => o.orden.toLowerCase() === nueva.orden.toLowerCase());
+  if (existe) { alert(`La orden "${existe.orden}" ya existe. Se seleccionó.`); $('form-orden').hidden = true; elegirOrden(existe.orden); return; }
+  ordenes.push(nueva);
+  if (!guardar(K.ordenes, ordenes)) { ordenes.pop(); return; }
+  $('form-orden').hidden = true;
+  elegirOrden(nueva.orden);
+};
+
+const origenSel = () => document.querySelector('input[name=origen]:checked').value;
+document.querySelectorAll('input[name=origen]').forEach(el => el.onchange = () => {
+  const manual = origenSel() !== 'observado';
+  $('hora-manual').hidden = !manual;
+  if (manual && !$('in-evento').value) $('in-evento').value = isoLocal(new Date()).slice(0, 16);
+});
+function reiniciarOrigen(){ document.querySelector('input[name=origen][value=observado]').checked = true; $('hora-manual').hidden = true; $('in-evento').value = ''; }
+
+function tocarEtapa(i){
+  const o = orden();
+  if (!o) { alert('Primero elige o crea una orden.'); return; }
+  const lista = etapasDe(o.orden);
+  if (lista[i] && !confirm(`"${ETAPAS[i]}" ya está registrada (${hora(lista[i].fecha_hora_evento)}). ¿Registrarla otra vez?`)) return;
+  const faltan = ETAPAS.filter((_, j) => j < i && !lista[j]);
+  if (faltan.length && !confirm(`Fuera de secuencia: falta ${faltan.join(', ')}.\n¿Registrar "${ETAPAS[i]}" de todos modos?`)) return;
+  const despues = ETAPAS.filter((_, j) => j > i && lista[j]);
+  if (despues.length && !confirm(`Fuera de secuencia: ya hay etapas posteriores registradas (${despues.join(', ')}).\n¿Registrar "${ETAPAS[i]}" de todos modos?`)) return;
+
+  const origen = origenSel();
+  let evento = isoLocal(new Date());
+  if (origen !== 'observado') {
+    const v = $('in-evento').value;
+    if (!v) { alert('Escribe cuándo pasó.'); $('in-evento').focus(); return; }
+    evento = v.length === 16 ? v + ':00' : v.slice(0, 19);
+    if (evento > isoLocal(new Date())) { alert('La hora del evento no puede ser en el futuro.'); return; }
+  }
+  const j = anteriorRegistrada(lista, i);
+  if (j >= 0 && evento < lista[j].fecha_hora_evento &&
+      !confirm(`La hora (${hora(evento)}) es anterior a "${ETAPAS[j]}" (${hora(lista[j].fecha_hora_evento)}).\n¿Guardar así?`)) return;
+
+  const r = nuevoRegistro({ tipo: 'etapa', etapa: ETAPAS[i], orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, origen, fecha_hora_evento: evento });
+  if (!r) return;
+  reiniciarOrigen();
+  render();
+  aviso(`Registrado: ${ETAPAS[i]} · ${hora(evento)}`, r);
+}
+
+function etiquetaOrigen(origen){
+  if (origen === 'observado') return null;
+  const s = document.createElement('span');
+  s.className = 'etiqueta' + (origen === 'documento' ? ' doc' : '');
+  s.textContent = origen === 'testimonio' ? 'Por confirmar (testimonio)' : 'Documento';
+  return s;
+}
+
+function renderOrden(){
+  const sel = $('sel-orden');
+  const vigentes = [], terminadas = [];
+  for (const o of ordenes) (etapasDe(o.orden)[5] ? terminadas : vigentes).push(o);
+  const opcion = (v, t) => { const op = document.createElement('option'); op.value = v; op.textContent = t; return op; };
+  const items = [opcion('', ordenes.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una')];
+  const grupo = (titulo, lista) => { if (!lista.length) return; const g = document.createElement('optgroup'); g.label = titulo;
+    lista.slice().reverse().forEach(o => g.append(opcion(o.orden, [o.orden, o.cliente, o.producto].filter(Boolean).join(' · ')))); items.push(g); };
+  grupo('En proceso', vigentes); grupo('Con salida registrada', terminadas);
+  sel.replaceChildren(...items);
+  if (!orden()) ordenActual = '';
+  sel.value = ordenActual;
+
+  const o = orden();
+  $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
+
+  const lista = o ? etapasDe(o.orden) : ETAPAS.map(() => null);
+  const siguiente = o ? lista.findIndex((x, i) => !x && lista.slice(i + 1).every(y => !y)) : -1;
+  $('etapas').replaceChildren(...ETAPAS.map((nombre, i) => {
+    const b = document.createElement('button'); b.type = 'button';
+    b.className = 'etapa' + (lista[i] ? ' hecha' : i === siguiente ? ' siguiente' : '');
+    const num = document.createElement('span'); num.className = 'num'; num.setAttribute('aria-hidden', 'true');
+    if (lista[i]) num.innerHTML = '<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M5 12l5 5 9-10"/></svg>'; else num.textContent = i + 1;
+    const txt = document.createElement('span'); txt.className = 'txt';
+    const n = document.createElement('b'); n.textContent = nombre;
+    const s = document.createElement('span');
+    s.textContent = lista[i] ? `Registrada ${hora(lista[i].fecha_hora_evento)}` : i === siguiente ? 'Siguiente · toca para registrar la hora' : 'Pendiente';
+    txt.append(n, s); b.append(num, txt);
+    b.onclick = () => tocarEtapa(i);
+    return b;
+  }));
+
+  const ol = $('tiempo'); ol.replaceChildren();
+  if (!o) { const li = document.createElement('li'); li.className = 'vacia'; li.textContent = 'Elige una orden para ver sus tiempos.'; ol.append(li); $('tiempo-total').textContent = ''; return; }
+  ETAPAS.forEach((nombre, i) => {
+    const r = lista[i];
+    const li = document.createElement('li');
+    const t = document.createElement('div'); const b = document.createElement('b'); b.textContent = nombre; t.append(b);
+    if (!r) { li.className = 'vacia'; t.append(' — pendiente'); li.append(t); ol.append(li); return; }
+    t.append(` · ${hora(r.fecha_hora_evento)}`);
+    const et = etiquetaOrigen(r.origen); if (et) t.append(et);
+    li.append(t);
+    const j = anteriorRegistrada(lista, i);
+    if (j >= 0) {
+      const min = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento);
+      const m = document.createElement('span'); m.className = 'min';
+      m.textContent = min >= 0 ? `+${min} min desde ${ETAPAS[j]}` : `${-min} min ANTES de ${ETAPAS[j]}: revisar`;
+      li.append(m);
+    }
+    const quien = document.createElement('div'); quien.className = 'ayuda'; quien.textContent = `Capturó: ${r.capturo}`; li.append(quien);
+    ol.append(li);
+  });
+  const hechas = lista.filter(Boolean);
+  $('tiempo-total').textContent = hechas.length >= 2
+    ? `Total: ${minutosEntre(hechas[0].fecha_hora_evento, hechas[hechas.length - 1].fecha_hora_evento)} min de ${ETAPAS[lista.indexOf(hechas[0])]} a ${ETAPAS[lista.lastIndexOf(hechas[hechas.length - 1])]}`
+    : '';
+}
+
+// ---------- Aviso con deshacer ----------
+let toastTimer = null, toastReg = null;
+function aviso(texto, r){
+  $('toast-txt').textContent = texto; toastReg = r; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; toastReg = null; }, 8000);
+}
+$('toast-deshacer').onclick = () => {
+  if (toastReg && anular(toastReg)) { $('toast').hidden = true; render(); }
+  toastReg = null;
+};
+
+// ---------- Exportar ----------
+function calculados(r, cache){
+  const c = {};
+  if (r.tipo === 'etapa' && r.anulado === 'no') {
+    if (!cache.has(r.orden)) cache.set(r.orden, etapasDe(r.orden));
+    const lista = cache.get(r.orden), j = anteriorRegistrada(lista, ETAPAS.indexOf(r.etapa));
+    if (j >= 0) c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento);
+  }
+  if (r.tipo === 'sesion' && r.inicio && r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
+  return c;
+}
+function celda(v){
+  if (v == null) return '';
+  if (typeof v === 'number') return String(v);
+  v = String(v);
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; // que Excel no lo tome como fórmula
+  return '"' + v.replace(/"/g, '""') + '"';
+}
+// Excel en español (verificado en Mac es_001, región MX) separa por ";"; con "sep=" pierde el UTF-8, por eso es opción y no truco.
+const separador = () => leer(K.separador, ';');
+function generarCSV(lista){
+  const sep = separador(), cache = new Map();
+  const filas = lista.map(r => { const f = Object.assign({}, r, calculados(r, cache)); return COLUMNAS.map(k => celda(f[k])).join(sep); });
+  return '﻿' + COLUMNAS.join(sep) + '\r\n' + filas.join('\r\n') + '\r\n';
+}
+const firma = r => `${r.id}|${r.anulado}|${r.fin || ''}`; // cambia si el registro se anula o se cierra después de exportarlo
+function delDia(){ const h = hoyStr(); return registros.filter(r => r.fecha_hora_captura.slice(0, 10) === h || (r.fin || '').slice(0, 10) === h); }
+function nombreArchivo(){ return `${hoyStr()}_captura_${slug(usuario.nombre)}_${slug(usuario.dispositivo)}.csv`; }
+function descargar(file){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+async function exportar(soloHoy){
+  const lista = soloHoy ? delDia() : registros;
+  if (!lista.length) { alert(soloHoy ? 'Hoy no hay registros.' : 'No hay registros.'); return; }
+  const file = new File([generarCSV(lista)], nombreArchivo(), { type: 'text/csv' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: file.name });
+    else descargar(file);
+  } catch (e) {
+    if (e && e.name === 'AbortError') return; // la persona cerró el menú: no cuenta como exportado
+    descargar(file);
+  }
+  lista.forEach(r => exportados.add(firma(r)));
+  guardar(K.exportados, [...exportados]);
+  guardar(K.ultimoExport, { cuando: isoLocal(new Date()), archivo: file.name, n: lista.length });
+  render();
+}
+$('exp-hoy').onclick = () => exportar(true);
+$('exp-todo').onclick = () => exportar(false);
+function renderExportar(){
+  $('c-hoy').textContent = delDia().length;
+  $('c-pend').textContent = registros.filter(r => !exportados.has(firma(r))).length;
+  $('c-total').textContent = registros.length;
+  const u = leer(K.ultimoExport, null);
+  $('exp-ultimo').textContent = u ? `Última exportación: ${hora(u.cuando)} · ${u.archivo} · ${u.n} registros` : 'Todavía no se ha exportado nada desde esta tablet.';
+}
+
+// ---------- Más ----------
+const instalada = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function renderMas(){
+  $('m-nombre').textContent = usuario.nombre; $('m-disp').textContent = usuario.dispositivo;
+  $('m-reg').textContent = registros.length; $('m-version').textContent = VERSION;
+  $('no-instalada').hidden = instalada();
+  document.querySelector(`input[name=sep][value="${separador()}"]`).checked = true;
+  if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { $('m-persist').textContent = p ? 'Sí' : 'No (exporta seguido)'; });
+  else $('m-persist').textContent = 'No disponible (exporta seguido)';
+}
+document.querySelectorAll('input[name=sep]').forEach(el => el.onchange = () => guardar(K.separador, el.value));
+$('m-cambiar').onclick = () => { $('in-nombre').value = usuario.nombre; $('in-dispositivo').value = usuario.dispositivo; $('inicio-cancelar').hidden = false; mostrar('inicio'); };
+
+// ---------- Inicio ----------
+$('form-inicio').onsubmit = e => {
+  e.preventDefault();
+  const nombre = $('in-nombre').value.trim(), dispositivo = $('in-dispositivo').value.trim();
+  if (!nombre || !dispositivo) { alert('Escribe tu nombre y el nombre del dispositivo.'); return; }
+  if (!slug(nombre) || !slug(dispositivo)) { alert('Usa letras o números en el nombre y el dispositivo.'); return; }
+  const nuevo = { nombre, dispositivo };
+  if (!guardar(K.usuario, nuevo)) return;
+  usuario = nuevo; $('inicio-cancelar').hidden = true; mostrar('orden');
+};
+$('inicio-cancelar').onclick = () => { $('inicio-cancelar').hidden = true; mostrar('mas'); };
+
+// ---------- Navegación ----------
+function mostrar(v){ vista = v; render(); document.querySelector('main').scrollTop = 0; }
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => mostrar(b.dataset.v));
+function render(){
+  if (!usuario) vista = 'inicio';
+  ['inicio', 'orden', 'exportar', 'mas'].forEach(v => { $('v-' + v).hidden = v !== vista; });
+  $('nav').hidden = vista === 'inicio';
+  $('app').classList.toggle('sin-nav', vista === 'inicio');
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === vista ? 'page' : 'false'));
+  renderBarra();
+  if (vista === 'orden') renderOrden();
+  if (vista === 'exportar') renderExportar();
+  if (vista === 'mas') renderMas();
+}
+setInterval(() => { if (sesion) renderBarra(); }, 30000);
+
+render();
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => error('No se pudo preparar el modo sin internet. Abre la app una vez con internet.'));
+</script>
+</body>
+</html>

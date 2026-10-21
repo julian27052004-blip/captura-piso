@@ -1,0 +1,5 @@
+# Nunca subir datos capturados ni catálogos
+*.csv
+*.json
+!manifest.webmanifest
+.DS_Store

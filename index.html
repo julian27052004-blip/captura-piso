@@ -30,7 +30,7 @@
   }
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--fg)}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overscroll-behavior:none} /* sin "deslizar para recargar" */
 body{font:18px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
@@ -42,11 +42,11 @@ p{margin:0 0 12px}
 svg.ic{width:26px;height:26px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Estructura: vertical = barra abajo; horizontal ancho = riel a la izquierda */
-#app{display:grid;height:100vh;height:100dvh;grid-template-rows:auto 1fr auto;grid-template-areas:"barra" "main" "nav"}
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;grid-template-areas:"barra" "main" "nav"} /* fijo a la pantalla: el menú no se va al recargar */
 #barra{grid-area:barra}
-main{grid-area:main;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:var(--gap);padding-left:max(var(--gap),env(safe-area-inset-left));padding-right:max(var(--gap),env(safe-area-inset-right))}
+main{grid-area:main;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:var(--gap);padding-left:max(var(--gap),env(safe-area-inset-left));padding-right:max(var(--gap),env(safe-area-inset-right))}
 #nav{grid-area:nav;display:flex;background:var(--card);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
-#nav button{flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--muted);font-size:15px;font-weight:600}
+#nav button{position:relative;flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--muted);font-size:15px;font-weight:600}
 #nav button[aria-current="page"]{color:var(--fg);box-shadow:inset 0 3px 0 var(--fg)}
 @media (orientation:landscape) and (min-width:900px){
   #app{grid-template-columns:112px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"nav barra" "nav main"}
@@ -72,6 +72,7 @@ main{grid-area:main;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:var
 .btn.ok{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .btn.peligro{background:var(--danger);color:var(--on-danger);border-color:var(--danger)}
 .btn.ancho{width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 .fila{display:flex;flex-wrap:wrap;gap:12px}
 .fila>.btn{flex:1 1 200px}
 label{display:block;font-weight:700;margin:0 0 6px}
@@ -117,6 +118,19 @@ dl.datos dt{color:var(--muted)} dl.datos dd{margin:0;font-weight:600;word-break:
 .etapa.hecha{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-fg)}
 .etapa.hecha .txt span{color:inherit}
 .etapa:active{transform:scale(.99)}
+.etapa.bloqueada{opacity:.55;border-style:dashed}
+.etapa.faltante{border-color:var(--warn-border);background:var(--warn-bg);color:var(--warn-fg)}
+.etapa.faltante .txt span{color:inherit}
+.etapas.pausa .etapa{pointer-events:none;opacity:.7} /* anti doble toque */
+.acciones-orden{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.btn.chico{min-height:48px;padding:0 16px;font-size:16px}
+.btn.borde-peligro{border-color:var(--danger);color:var(--danger)}
+#nav .badge{position:absolute;top:6px;left:calc(50% + 6px);min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--danger);color:var(--on-danger);font-size:13px;font-weight:800;display:grid;place-items:center}
+dialog{border:0;border-radius:18px;padding:22px;width:min(560px,calc(100% - 32px));background:var(--card);color:var(--fg);box-shadow:0 20px 50px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(2,6,23,.6)}
+dialog p{white-space:pre-line}
+.dlg-botones{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.dlg-botones .btn{width:100%}
 ol.tiempo{list-style:none;margin:0;padding:0}
 ol.tiempo li{position:relative;padding:0 0 18px 28px;border-left:3px solid var(--border);margin-left:8px}
 ol.tiempo li:last-child{border-left-color:transparent;padding-bottom:0}
@@ -177,10 +191,15 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
               <button type="button" id="btn-nueva" class="btn" style="flex:0 0 auto">+ Nueva orden</button>
             </div>
             <div id="orden-resumen" class="orden-resumen"></div>
+            <div id="acciones-orden" class="acciones-orden" hidden>
+              <button type="button" id="btn-editar" class="btn chico">Editar orden</button>
+              <button type="button" id="btn-anular-orden" class="btn chico">Anular orden</button>
+              <button type="button" id="btn-borrar-orden" class="btn chico borde-peligro">Borrar orden</button>
+            </div>
           </div>
 
           <form id="form-orden" class="tarjeta" novalidate hidden>
-            <h2>Nueva orden</h2>
+            <h2 id="form-orden-titulo">Nueva orden</h2>
             <div class="campo"><label for="no-orden">Orden o lote <span class="req">*</span></label><input type="text" id="no-orden" autocapitalize="characters" required></div>
             <div class="campo"><label for="no-cliente">Cliente</label><input type="text" id="no-cliente" list="dl-cliente"></div>
             <div class="campo"><label for="no-oc">OC</label><input type="text" id="no-oc" list="dl-oc" autocapitalize="characters"></div>
@@ -254,21 +273,30 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
         </fieldset>
         <p class="ayuda">Si al abrir el CSV en Excel todo queda en una sola columna, cambia el separador y vuelve a exportar.</p>
       </div>
+      <div class="tarjeta">
+        <h2>Empezar de cero</h2>
+        <p class="ayuda">Borra todas las órdenes y registros de esta tablet. Antes te ofrece exportar lo pendiente. Tu nombre y el de la tablet se conservan.</p>
+        <button type="button" id="m-borrar-todo" class="btn borde-peligro">Borrar todos los registros</button>
+      </div>
     </section>
   </main>
 
   <nav id="nav" aria-label="Secciones">
     <button type="button" data-v="orden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h6"/></svg>Orden</button>
-    <button type="button" data-v="exportar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar</button>
+    <button type="button" data-v="exportar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar<span id="badge-pend" class="badge" hidden></span></button>
     <button type="button" data-v="mas"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
   </nav>
 </div>
+
+<dialog id="dlg" aria-labelledby="dlg-t"><h2 id="dlg-t"></h2><p id="dlg-x"></p>
+  <div id="dlg-escribir" class="campo" hidden><label for="dlg-in" id="dlg-in-l"></label><input type="text" id="dlg-in" autocomplete="off" autocapitalize="characters"></div>
+  <div id="dlg-b" class="dlg-botones"></div></dialog>
 
 <div id="toast" role="status" hidden><p id="toast-txt"></p><button type="button" id="toast-deshacer">Deshacer</button></div>
 
 <script>
 'use strict';
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 // Formato fijo del CSV para todas las fases; las columnas sin dato en fase 1 salen vacías.
 const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo','dispositivo','sesion_id','origen','anulado',
@@ -298,6 +326,38 @@ function guardar(k, v){
     return false;
   }
 }
+
+// Cambia órdenes y registros juntos: si algo no se guarda, todo regresa como estaba.
+function guardarTodo(cambiar){
+  const antes = [JSON.stringify(ordenes), JSON.stringify(registros)];
+  cambiar();
+  if (guardar(K.ordenes, ordenes) && guardar(K.registros, registros)) return true;
+  ordenes = JSON.parse(antes[0]); registros = JSON.parse(antes[1]);
+  try { localStorage.setItem(K.ordenes, antes[0]); } catch(e) {}
+  return false;
+}
+
+// ---------- Ventanas de confirmación (poka-yoke: botones grandes y la opción segura siempre visible) ----------
+function preguntar(titulo, texto, botones, escribir){
+  const d = $('dlg');
+  $('dlg-t').textContent = titulo; $('dlg-x').textContent = texto || '';
+  $('dlg-escribir').hidden = !escribir; $('dlg-in').value = '';
+  if (escribir) $('dlg-in-l').textContent = `Para confirmar, escribe ${escribir}`;
+  return new Promise(res => {
+    const fin = v => { d.oncancel = null; if (d.open) d.close(); res(v); };
+    const els = botones.map(b => {
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'btn ' + (b.c || ''); el.textContent = b.t;
+      el.disabled = !!(escribir && b.v); el.onclick = () => fin(b.v); return el;
+    });
+    $('dlg-in').oninput = () => els.forEach((el, n) => { if (botones[n].v) el.disabled = $('dlg-in').value.trim().toUpperCase() !== escribir; });
+    $('dlg-b').replaceChildren(...els);
+    // Esc o botón atrás = la opción segura. Con "cancel" y no "close": el close de una ventana anterior llega tarde y cancelaría esta.
+    d.oncancel = e => { e.preventDefault(); fin(null); };
+    d.showModal();
+    if (escribir) $('dlg-in').focus();
+  });
+}
+const avisar = (texto, titulo = 'Aviso') => preguntar(titulo, texto, [{ v: 'ok', t: 'Entendido', c: 'prim' }]);
 
 let usuario = leer(K.usuario, null);   // {nombre, dispositivo}
 let registros = leer(K.registros, []);
@@ -350,17 +410,18 @@ function etapasDe(orden){
 const anteriorRegistrada = (lista, i) => { for (let j = i - 1; j >= 0; j--) if (lista[j]) return j; return -1; };
 
 // ---------- Sesión de observación ----------
-function iniciarSesion(){
+function iniciarSesion(desde){
   const id = 'S-' + nuevoId();
-  const ahora = isoLocal(new Date());
+  const ahora = typeof desde === 'string' ? desde : isoLocal(new Date()); // al registrar, la observación arranca con el toque
   const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora });
   if (!r) return;
   sesion = { id, inicio: ahora };
   if (!guardar(K.sesion, sesion)) { sesion = null; anular(r); }
   render();
 }
-function terminarSesion(){
-  if (!confirm('¿Terminar la observación? Queda guardada la hora de fin.')) return;
+async function terminarSesion(){
+  if (await preguntar('Terminar la observación', 'Se guarda la hora de fin. Lo que registres después ya no queda ligado a esta observación.',
+    [{ v: 'si', t: 'Terminar observación', c: 'prim' }, { v: null, t: 'Seguir observando' }]) !== 'si') return;
   const r = registros.find(x => x.tipo === 'sesion' && x.sesion_id === sesion.id);
   if (r && !actualizar(r, { fin: isoLocal(new Date()) })) return;
   const previa = sesion; sesion = null;
@@ -389,29 +450,73 @@ function renderBarra(){
 }
 
 // ---------- Orden ----------
-const orden = () => ordenes.find(o => o.orden === ordenActual) || null;
+const orden = () => ordenes.find(o => o.orden === ordenActual && !o.anulada) || null;
 function valoresUsados(campo){ return [...new Set(ordenes.map(o => o[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')); }
 function llenarDatalist(id, campo){ $(id).replaceChildren(...valoresUsados(campo).map(v => { const o = document.createElement('option'); o.value = v; return o; })); }
 function elegirOrden(v){ ordenActual = v; guardar(K.ordenActual, v); render(); }
 
 $('sel-orden').onchange = e => elegirOrden(e.target.value);
-$('btn-nueva').onclick = () => {
+let editando = null; // orden que se está editando; null = orden nueva
+function abrirFormOrden(o){
+  editando = o ? o.orden : null;
   $('form-orden').reset(); $('form-orden').hidden = false;
+  $('form-orden-titulo').textContent = o ? `Editar orden ${o.orden}` : 'Nueva orden';
+  if (o) { $('no-orden').value = o.orden; $('no-cliente').value = o.cliente || ''; $('no-oc').value = o.oc || ''; $('no-producto').value = o.producto || ''; }
   llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto');
   $('no-orden').focus();
-};
-$('no-cancelar').onclick = () => { $('form-orden').hidden = true; };
-$('form-orden').onsubmit = e => {
+}
+$('btn-nueva').onclick = () => abrirFormOrden(null);
+$('btn-editar').onclick = () => abrirFormOrden(orden());
+$('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = null; };
+$('form-orden').onsubmit = async e => {
   e.preventDefault();
   const v = id => $(id).value.trim();
-  const nueva = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto'), creada: isoLocal(new Date()) };
-  if (!nueva.orden) { alert('Escribe la orden o el lote.'); $('no-orden').focus(); return; }
-  const existe = ordenes.find(o => o.orden.toLowerCase() === nueva.orden.toLowerCase());
-  if (existe) { alert(`La orden "${existe.orden}" ya existe. Se seleccionó.`); $('form-orden').hidden = true; elegirOrden(existe.orden); return; }
-  ordenes.push(nueva);
-  if (!guardar(K.ordenes, ordenes)) { ordenes.pop(); return; }
-  $('form-orden').hidden = true;
-  elegirOrden(nueva.orden);
+  const datos = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto') };
+  if (!datos.orden) { await avisar('Escribe la orden o el lote.', 'Falta la orden'); $('no-orden').focus(); return; }
+  const existe = ordenes.find(o => !o.anulada && o.orden !== editando && o.orden.toLowerCase() === datos.orden.toLowerCase());
+  if (existe && editando) { await avisar(`Ya hay otra orden "${existe.orden}". Usa otro nombre.`, 'Orden repetida'); return; }
+  if (existe) { await avisar(`La orden "${existe.orden}" ya existe. Se seleccionó para que no quede duplicada.`, 'Orden repetida'); $('form-orden').hidden = true; elegirOrden(existe.orden); return; }
+  if (editando) {
+    const o = orden(), ahora = isoLocal(new Date()), viejo = editando;
+    const cambio = ['orden', 'cliente', 'oc', 'producto'].some(k => (o[k] || '') !== datos[k]);
+    // la corrección también llega a las etapas ya registradas, con rastro en la nota
+    if (cambio && !guardarTodo(() => {
+      Object.assign(orden(), datos);
+      for (const r of registros) if (r.orden === viejo) {
+        Object.assign(r, datos, { editado: ahora });
+        r.nota = (r.nota ? r.nota + ' | ' : '') + `orden editada por ${usuario.nombre} ${ahora}`;
+      }
+    })) return;
+  } else {
+    ordenes.push(Object.assign(datos, { creada: isoLocal(new Date()) }));
+    if (!guardar(K.ordenes, ordenes)) { ordenes.pop(); return; }
+  }
+  $('form-orden').hidden = true; editando = null;
+  elegirOrden(datos.orden);
+};
+
+$('btn-anular-orden').onclick = async () => {
+  const o = orden(), regs = registros.filter(r => r.orden === o.orden && r.anulado === 'no');
+  if (await preguntar(`Anular la orden ${o.orden}`,
+    `Se anulan ${cuenta(regs.length, 'registro')} de esta orden y la orden sale de la lista.\nLos registros siguen en el CSV marcados como anulados, para que quede rastro.`,
+    [{ v: 'si', t: 'Anular orden', c: 'peligro' }, { v: null, t: 'Cancelar', c: 'prim' }]) !== 'si') return;
+  const ahora = isoLocal(new Date());
+  if (!guardarTodo(() => {
+    orden().anulada = ahora;
+    for (const r of registros) if (r.orden === o.orden && r.anulado === 'no') { r.anulado = 'sí'; r.nota = (r.nota ? r.nota + ' | ' : '') + `orden anulada por ${usuario.nombre} ${ahora}`; }
+  })) return;
+  elegirOrden(''); aviso(`Orden ${o.orden} anulada.`);
+};
+$('btn-borrar-orden').onclick = async () => {
+  const o = orden(), regs = registros.filter(r => r.orden === o.orden);
+  const pend = regs.filter(r => !exportados.has(firma(r))).length;
+  const texto = regs.length
+    ? `Se borran para siempre ${cuenta(regs.length, 'registro')} de esta orden${pend ? ` (${pend} sin exportar)` : ''}. No saldrán en ningún CSV.\nSi solo te equivocaste, usa Anular: deja rastro.`
+    : 'La orden no tiene registros. Solo se quita de la lista.';
+  if (await preguntar(`Borrar la orden ${o.orden}`, texto, [{ v: 'si', t: 'Borrar orden', c: 'peligro' }, { v: null, t: 'Cancelar', c: 'prim' }],
+    regs.length ? 'BORRAR' : null) !== 'si') return;
+  if (!guardarTodo(() => { registros = registros.filter(r => r.orden !== o.orden); ordenes = ordenes.filter(x => x.orden !== o.orden || x.anulada); })) return;
+  elegirOrden(''); aviso(`Orden ${o.orden} borrada.`);
 };
 
 const origenSel = () => document.querySelector('input[name=origen]:checked').value;
@@ -422,33 +527,70 @@ document.querySelectorAll('input[name=origen]').forEach(el => el.onchange = () =
 });
 function reiniciarOrigen(){ document.querySelector('input[name=origen][value=observado]').checked = true; $('hora-manual').hidden = true; $('in-evento').value = ''; }
 
-function tocarEtapa(i){
-  const o = orden();
-  if (!o) { alert('Primero elige o crea una orden.'); return; }
-  const lista = etapasDe(o.orden);
-  if (lista[i] && !confirm(`"${ETAPAS[i]}" ya está registrada (${hora(lista[i].fecha_hora_evento)}). ¿Registrarla otra vez?`)) return;
-  const faltan = ETAPAS.filter((_, j) => j < i && !lista[j]);
-  if (faltan.length && !confirm(`Fuera de secuencia: falta ${faltan.join(', ')}.\n¿Registrar "${ETAPAS[i]}" de todos modos?`)) return;
-  const despues = ETAPAS.filter((_, j) => j > i && lista[j]);
-  if (despues.length && !confirm(`Fuera de secuencia: ya hay etapas posteriores registradas (${despues.join(', ')}).\n¿Registrar "${ETAPAS[i]}" de todos modos?`)) return;
+// Poka-yoke de etapas: solo la siguiente se registra de un toque; una registrada no se duplica (se rehace);
+// las posteriores piden saltar; una que ya pasó no puede ser "observada" ahora.
+const estadoEtapas = lista => { const ultima = lista.reduce((u, x, i) => x ? i : u, -1); return { ultima, siguiente: ultima + 1 < ETAPAS.length ? ultima + 1 : -1 }; };
+const cuenta = (n, uno, varios = uno + 's') => `${n} ${n === 1 ? uno : varios}`;
+const lista3 = xs => xs.map(x => `«${x}»`).join(', ');
+let pausaHasta = 0; // anti doble toque
 
-  const origen = origenSel();
+async function tocarEtapa(i){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const lista = etapasDe(o.orden), { ultima, siguiente } = estadoEtapas(lista);
+  if (lista[i]) return rehacerDesde(i, lista);
+  if (i < ultima && origenSel() === 'observado') {
+    await avisar(`«${ETAPAS[i]}» ya pasó: hay etapas posteriores registradas, así que no se puede marcar como observada ahora.\n\nElige Documento o Testimonio arriba, escribe la hora en "¿Cuándo pasó?" y vuelve a tocarla.`, 'Esta etapa ya pasó');
+    return;
+  }
+  if (i > siguiente && siguiente >= 0) {
+    const saltadas = ETAPAS.slice(siguiente, i);
+    if (await preguntar(saltadas.length === 1 ? 'Saltar una etapa' : `Saltar ${saltadas.length} etapas`,
+      `${lista3(saltadas)} ${saltadas.length === 1 ? 'quedará' : 'quedarán'} sin dato.\nHazlo solo si no se pudo observar; después se puede llenar con Documento o Testimonio.`,
+      [{ v: 'si', t: `Saltar y registrar «${ETAPAS[i]}»` }, { v: null, t: `Cancelar`, c: 'prim' }]) !== 'si') return;
+  }
+  return registrarEtapa(i, lista);
+}
+
+async function registrarEtapa(i, lista){
+  const o = orden(), origen = origenSel();
   let evento = isoLocal(new Date());
   if (origen !== 'observado') {
     const v = $('in-evento').value;
-    if (!v) { alert('Escribe cuándo pasó.'); $('in-evento').focus(); return; }
+    if (!v) { await avisar('Escribe en "¿Cuándo pasó?" la hora que dice el documento o el testimonio.', 'Falta la hora'); $('in-evento').focus(); return; }
     evento = v.length === 16 ? v + ':00' : v.slice(0, 19);
-    if (evento > isoLocal(new Date())) { alert('La hora del evento no puede ser en el futuro.'); return; }
+    if (evento > isoLocal(new Date())) { await avisar('La hora del evento no puede ser en el futuro.', 'Revisa la hora'); return; }
+  } else if (!sesion) {
+    const r = await preguntar('No hay observación activa', 'Lo que observas debe quedar ligado a una observación para poder decir "N eventos en X horas observadas".',
+      [{ v: 'iniciar', t: 'Iniciar observación y registrar', c: 'ok' }, { v: 'sin', t: 'Registrar sin observación' }, { v: null, t: 'Cancelar' }]);
+    if (!r) return;
+    if (r === 'iniciar') { iniciarSesion(evento); if (!sesion) return; }
   }
-  const j = anteriorRegistrada(lista, i);
-  if (j >= 0 && evento < lista[j].fecha_hora_evento &&
-      !confirm(`La hora (${hora(evento)}) es anterior a "${ETAPAS[j]}" (${hora(lista[j].fecha_hora_evento)}).\n¿Guardar así?`)) return;
+  const j = anteriorRegistrada(lista, i), k = lista.findIndex((x, n) => n > i && x);
+  const choca = j >= 0 && evento < lista[j].fecha_hora_evento ? `es anterior a «${ETAPAS[j]}» (${hora(lista[j].fecha_hora_evento)})`
+              : k >= 0 && evento > lista[k].fecha_hora_evento ? `es posterior a «${ETAPAS[k]}» (${hora(lista[k].fecha_hora_evento)})` : '';
+  if (choca && await preguntar('Revisa la hora', `La hora de «${ETAPAS[i]}» (${hora(evento)}) ${choca}. Casi siempre es un error de captura.`,
+    [{ v: null, t: 'Corregir la hora', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) !== 'si') return;
 
   const r = nuevoRegistro({ tipo: 'etapa', etapa: ETAPAS[i], orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, origen, fecha_hora_evento: evento });
   if (!r) return;
   reiniciarOrigen();
-  render();
+  pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
   aviso(`Registrado: ${ETAPAS[i]} · ${hora(evento)}`, r);
+}
+
+async function rehacerDesde(i, lista){
+  const r = lista[i], afectadas = lista.filter((x, n) => x && n >= i);
+  const despues = afectadas.slice(1).map(x => x.etapa);
+  const origen = { observado: 'observado', documento: 'documento', testimonio: 'testimonio, por confirmar' }[r.origen];
+  if (await preguntar(`«${ETAPAS[i]}»`,
+    `Registrada a las ${hora(r.fecha_hora_evento)} (${origen}) por ${r.capturo}.\n\n` +
+    (despues.length ? `Rehacer anula esta etapa y las siguientes: ${lista3(despues)}.` : 'Rehacer anula esta etapa.') +
+    ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.',
+    [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Rehacer desde aquí', c: 'borde-peligro' }]) !== 'si') return;
+  const ahora = isoLocal(new Date());
+  if (!guardarTodo(() => afectadas.forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; }))) return;
+  render(); aviso(`Listo: registra de nuevo «${ETAPAS[i]}».`);
 }
 
 function etiquetaOrigen(origen){
@@ -462,9 +604,10 @@ function etiquetaOrigen(origen){
 function renderOrden(){
   const sel = $('sel-orden');
   const vigentes = [], terminadas = [];
-  for (const o of ordenes) (etapasDe(o.orden)[5] ? terminadas : vigentes).push(o);
+  const activas = ordenes.filter(o => !o.anulada);
+  for (const o of activas) (etapasDe(o.orden)[5] ? terminadas : vigentes).push(o);
   const opcion = (v, t) => { const op = document.createElement('option'); op.value = v; op.textContent = t; return op; };
-  const items = [opcion('', ordenes.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una')];
+  const items = [opcion('', activas.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una')];
   const grupo = (titulo, lista) => { if (!lista.length) return; const g = document.createElement('optgroup'); g.label = titulo;
     lista.slice().reverse().forEach(o => g.append(opcion(o.orden, [o.orden, o.cliente, o.producto].filter(Boolean).join(' · ')))); items.push(g); };
   grupo('En proceso', vigentes); grupo('Con salida registrada', terminadas);
@@ -475,17 +618,26 @@ function renderOrden(){
   const o = orden();
   $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
 
+  $('acciones-orden').hidden = !o;
   const lista = o ? etapasDe(o.orden) : ETAPAS.map(() => null);
-  const siguiente = o ? lista.findIndex((x, i) => !x && lista.slice(i + 1).every(y => !y)) : -1;
+  const { ultima, siguiente } = o ? estadoEtapas(lista) : { ultima: -1, siguiente: -1 };
+  $('etapas').classList.toggle('pausa', Date.now() < pausaHasta);
   $('etapas').replaceChildren(...ETAPAS.map((nombre, i) => {
     const b = document.createElement('button'); b.type = 'button';
-    b.className = 'etapa' + (lista[i] ? ' hecha' : i === siguiente ? ' siguiente' : '');
+    const tipo = lista[i] ? 'hecha' : !o ? 'bloqueada' : i === siguiente ? 'siguiente' : i < ultima ? 'faltante' : 'bloqueada';
+    b.className = 'etapa ' + tipo;
+    b.disabled = !o;
     const num = document.createElement('span'); num.className = 'num'; num.setAttribute('aria-hidden', 'true');
     if (lista[i]) num.innerHTML = '<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M5 12l5 5 9-10"/></svg>'; else num.textContent = i + 1;
     const txt = document.createElement('span'); txt.className = 'txt';
     const n = document.createElement('b'); n.textContent = nombre;
     const s = document.createElement('span');
-    s.textContent = lista[i] ? `Registrada ${hora(lista[i].fecha_hora_evento)}` : i === siguiente ? 'Siguiente · toca para registrar la hora' : 'Pendiente';
+    s.textContent = {
+      hecha: lista[i] && `Registrada ${hora(lista[i].fecha_hora_evento)} · toca para rehacer`,
+      siguiente: 'Siguiente · toca para registrar la hora',
+      faltante: 'Sin dato · solo con Documento o Testimonio',
+      bloqueada: o ? `Primero «${ETAPAS[siguiente]}»` : 'Elige o crea una orden'
+    }[tipo];
     txt.append(n, s); b.append(num, txt);
     b.onclick = () => tocarEtapa(i);
     return b;
@@ -520,7 +672,7 @@ function renderOrden(){
 // ---------- Aviso con deshacer ----------
 let toastTimer = null, toastReg = null;
 function aviso(texto, r){
-  $('toast-txt').textContent = texto; toastReg = r; $('toast').hidden = false;
+  $('toast-txt').textContent = texto; toastReg = r || null; $('toast').hidden = false; $('toast-deshacer').hidden = !r;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; toastReg = null; }, 8000);
 }
 $('toast-deshacer').onclick = () => {
@@ -553,7 +705,8 @@ function generarCSV(lista){
   const filas = lista.map(r => { const f = Object.assign({}, r, calculados(r, cache)); return COLUMNAS.map(k => celda(f[k])).join(sep); });
   return '﻿' + COLUMNAS.join(sep) + '\r\n' + filas.join('\r\n') + '\r\n';
 }
-const firma = r => `${r.id}|${r.anulado}|${r.fin || ''}`; // cambia si el registro se anula o se cierra después de exportarlo
+const firma = r => `${r.id}|${r.anulado}|${r.fin || ''}|${r.editado || ''}`; // cambia si el registro se anula, se cierra o se edita después de exportarlo
+const sinExportar = () => registros.filter(r => !exportados.has(firma(r))).length;
 function delDia(){ const h = hoyStr(); return registros.filter(r => r.fecha_hora_captura.slice(0, 10) === h || (r.fin || '').slice(0, 10) === h); }
 function nombreArchivo(){ return `${hoyStr()}_captura_${slug(usuario.nombre)}_${slug(usuario.dispositivo)}.csv`; }
 function descargar(file){
@@ -563,25 +716,26 @@ function descargar(file){
 }
 async function exportar(soloHoy){
   const lista = soloHoy ? delDia() : registros;
-  if (!lista.length) { alert(soloHoy ? 'Hoy no hay registros.' : 'No hay registros.'); return; }
+  if (!lista.length) { await avisar(soloHoy ? 'Hoy no hay registros.' : 'No hay registros.', 'Nada que exportar'); return false; }
   const file = new File([generarCSV(lista)], nombreArchivo(), { type: 'text/csv' });
   try {
     if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: file.name });
     else descargar(file);
   } catch (e) {
-    if (e && e.name === 'AbortError') return; // la persona cerró el menú: no cuenta como exportado
+    if (e && e.name === 'AbortError') return false; // la persona cerró el menú: no cuenta como exportado
     descargar(file);
   }
   lista.forEach(r => exportados.add(firma(r)));
   guardar(K.exportados, [...exportados]);
   guardar(K.ultimoExport, { cuando: isoLocal(new Date()), archivo: file.name, n: lista.length });
   render();
+  return true;
 }
 $('exp-hoy').onclick = () => exportar(true);
 $('exp-todo').onclick = () => exportar(false);
 function renderExportar(){
   $('c-hoy').textContent = delDia().length;
-  $('c-pend').textContent = registros.filter(r => !exportados.has(firma(r))).length;
+  $('c-pend').textContent = sinExportar();
   $('c-total').textContent = registros.length;
   const u = leer(K.ultimoExport, null);
   $('exp-ultimo').textContent = u ? `Última exportación: ${hora(u.cuando)} · ${u.archivo} · ${u.n} registros` : 'Todavía no se ha exportado nada desde esta tablet.';
@@ -598,14 +752,30 @@ function renderMas(){
   else $('m-persist').textContent = 'No disponible (exporta seguido)';
 }
 document.querySelectorAll('input[name=sep]').forEach(el => el.onchange = () => guardar(K.separador, el.value));
+$('m-borrar-todo').onclick = async () => {
+  if (!registros.length && !ordenes.length) { await avisar('No hay órdenes ni registros en esta tablet.', 'Nada que borrar'); return; }
+  const pend = sinExportar();
+  if (pend) {
+    const r = await preguntar('Hay registros sin exportar', `${cuenta(pend, 'registro')} todavía no ${pend === 1 ? 'sale' : 'salen'} de esta tablet. Si borras sin exportar, se pierden.`,
+      [{ v: 'exportar', t: 'Exportar todo primero', c: 'prim' }, { v: 'seguir', t: 'Borrar sin exportar', c: 'borde-peligro' }, { v: null, t: 'Cancelar' }]);
+    if (!r || (r === 'exportar' && !(await exportar(false)))) return;
+  }
+  if (await preguntar('Borrar todos los registros',
+    `Se borran ${cuenta(ordenes.length, 'orden', 'órdenes')} y ${cuenta(registros.length, 'registro')} de esta tablet. No se puede deshacer.\nTu nombre, el de la tablet y el separador del CSV se conservan.`,
+    [{ v: 'si', t: 'Borrar todo', c: 'peligro' }, { v: null, t: 'Cancelar', c: 'prim' }], 'BORRAR') !== 'si') return;
+  try { [K.registros, K.ordenes, K.sesion, K.ordenActual, K.exportados, K.ultimoExport].forEach(k => localStorage.removeItem(k)); }
+  catch (e) { error('No se pudo borrar. Vuelve a intentar.'); return; }
+  registros = []; ordenes = []; sesion = null; ordenActual = ''; exportados = new Set();
+  mostrar('orden'); aviso('Se borró todo. La tablet quedó lista para empezar de cero.');
+};
 $('m-cambiar').onclick = () => { $('in-nombre').value = usuario.nombre; $('in-dispositivo').value = usuario.dispositivo; $('inicio-cancelar').hidden = false; mostrar('inicio'); };
 
 // ---------- Inicio ----------
-$('form-inicio').onsubmit = e => {
+$('form-inicio').onsubmit = async e => {
   e.preventDefault();
   const nombre = $('in-nombre').value.trim(), dispositivo = $('in-dispositivo').value.trim();
-  if (!nombre || !dispositivo) { alert('Escribe tu nombre y el nombre del dispositivo.'); return; }
-  if (!slug(nombre) || !slug(dispositivo)) { alert('Usa letras o números en el nombre y el dispositivo.'); return; }
+  if (!nombre || !dispositivo) { await avisar('Escribe tu nombre y el nombre del dispositivo.', 'Faltan datos'); return; }
+  if (!slug(nombre) || !slug(dispositivo)) { await avisar('Usa letras o números en el nombre y el dispositivo.', 'Revisa los datos'); return; }
   const nuevo = { nombre, dispositivo };
   if (!guardar(K.usuario, nuevo)) return;
   usuario = nuevo; $('inicio-cancelar').hidden = true; mostrar('orden');
@@ -621,6 +791,8 @@ function render(){
   $('nav').hidden = vista === 'inicio';
   $('app').classList.toggle('sin-nav', vista === 'inicio');
   document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === vista ? 'page' : 'false'));
+  const pend = usuario ? sinExportar() : 0;
+  $('badge-pend').hidden = !pend; $('badge-pend').textContent = pend > 99 ? '99+' : pend;
   renderBarra();
   if (vista === 'orden') renderOrden();
   if (vista === 'exportar') renderExportar();

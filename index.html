@@ -162,6 +162,21 @@ ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radiu
 dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 #dlg-campos input[type=number]{width:100%;min-height:56px;padding:0 14px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:20px}
 #dlg-error{color:var(--danger);font-weight:700}
+.fila-cat{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 0;border-top:1px solid var(--border)}
+.fila-cat:first-child{border-top:0}
+.fila-cat .quien{flex:1 1 180px;min-width:0}
+.fila-cat .quien span{display:block;color:var(--muted);font-size:14px}
+.fila-cat.inactiva .quien{opacity:.5;text-decoration:line-through}
+.merma-item{width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--border);padding:10px 0;min-height:48px}
+.merma-item:first-child{border-top:0}
+.merma-item span{display:block;color:var(--muted);font-size:14px}
+.merma-item.anulada{opacity:.5;text-decoration:line-through}
+#dlg-campos select{width:100%;min-height:52px;padding:0 12px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:17px}
+#dlg-campos input[type=text]{min-height:52px}
+.nuevo-item{display:flex;gap:8px;margin-top:8px}
+.nuevo-item input{flex:1}
+#cierre-resumen{white-space:pre-line}
+.parecida{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-border);border-radius:10px;padding:8px 10px;margin-top:8px;font-size:15px}
 
 /* Avisos flotantes */
 #error{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:30;background:var(--danger);color:var(--on-danger);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3)}
@@ -230,11 +245,13 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             <div class="campo"><label for="no-cliente">Cliente</label><input type="text" id="no-cliente" list="dl-cliente"></div>
             <div class="campo"><label for="no-oc">OC</label><input type="text" id="no-oc" list="dl-oc" autocapitalize="characters"></div>
             <div class="campo"><label for="no-producto">Producto</label><input type="text" id="no-producto" list="dl-producto"></div>
+            <div class="campo"><label for="no-linea">Línea</label><input type="text" id="no-linea" list="dl-linea" autocapitalize="characters"></div>
             <div class="fila"><button type="submit" class="btn prim">Guardar orden</button><button type="button" id="no-cancelar" class="btn">Cancelar</button></div>
-            <datalist id="dl-cliente"></datalist><datalist id="dl-oc"></datalist><datalist id="dl-producto"></datalist>
+            <datalist id="dl-cliente"></datalist><datalist id="dl-oc"></datalist><datalist id="dl-producto"></datalist><datalist id="dl-linea"></datalist>
           </form>
 
-          <div class="tarjeta">
+          <div id="slot-origen-orden"></div>
+          <div class="tarjeta" id="tarjeta-origen">
             <fieldset class="segmentado" id="origen">
               <legend>Origen del dato</legend>
               <label><input type="radio" name="origen" value="observado" checked><span>Observado</span></label>
@@ -260,6 +277,29 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
           <ol id="tiempo" class="tiempo"></ol>
           <p id="tiempo-total" class="ayuda" style="margin:16px 0 0"></p>
         </div>
+      </div>
+    </section>
+
+    <!-- 3. Merma -->
+    <section id="v-merma" hidden>
+      <div class="tarjeta">
+        <label for="sel-orden-m">Orden activa</label>
+        <select id="sel-orden-m"></select>
+        <div id="merma-resumen" class="orden-resumen"></div>
+      </div>
+      <div id="slot-origen-merma"></div>
+      <div class="fila" style="margin-bottom:var(--gap)">
+        <button type="button" id="btn-merma" class="btn prim">Registrar merma</button>
+        <button type="button" id="btn-cierre" class="btn">Cerrar orden</button>
+      </div>
+      <div class="tarjeta">
+        <h2>Balance de cierre</h2>
+        <div id="cierre-resumen" class="ayuda"></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Mermas de la orden</h2>
+        <p class="ayuda" style="margin:0 0 12px">Toca una merma para anularla.</p>
+        <div id="lista-merma"></div>
       </div>
     </section>
 
@@ -304,6 +344,17 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
         <p class="ayuda">Si al abrir el CSV en Excel todo queda en una sola columna, cambia el separador y vuelve a exportar.</p>
       </div>
       <div class="tarjeta">
+        <h2>Catálogos de merma</h2>
+        <p class="ayuda">Quitar solo desactiva: los registros viejos conservan su texto.</p>
+        <h3>Causas</h3><div id="cat-causas"></div>
+        <h3 style="margin-top:16px">Equipos</h3><div id="cat-equipos"></div>
+        <button type="button" id="cat-nuevo-equipo" class="btn chico" style="margin-top:8px">+ Nuevo equipo</button>
+        <h3 style="margin-top:16px">Factores piezas-peso</h3>
+        <p class="ayuda">Por producto y unidad de empaque: piezas por unidad y kg de MP por pieza según la fórmula (no el peso del envase). merma_pct solo se calcula con factor confirmado con planta.</p>
+        <div id="cat-factores"></div>
+        <button type="button" id="cat-nuevo-factor" class="btn chico" style="margin-top:8px">+ Nuevo factor</button>
+      </div>
+      <div class="tarjeta">
         <h2>Empezar de cero</h2>
         <p class="ayuda">Borra todas las órdenes y registros de esta tablet. Antes te ofrece exportar lo pendiente. Tu nombre y el de la tablet se conservan.</p>
         <button type="button" id="m-borrar-todo" class="btn borde-peligro">Borrar todos los registros</button>
@@ -313,6 +364,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
   <nav id="nav" aria-label="Secciones">
     <button type="button" data-v="orden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h6"/></svg>Orden</button>
+    <button type="button" data-v="merma"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 21h10M5 7h14M5 7l-3 6a3 3 0 006 0zM19 7l-3 6a3 3 0 006 0z"/></svg>Merma</button>
     <button type="button" data-v="exportar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar<span id="badge-pend" class="badge" hidden></span></button>
     <button type="button" data-v="mas"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
   </nav>
@@ -327,19 +379,28 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
 const UNIDADES = ['Kg', 'Lt', 'Unidades'];
+const MATERIALES = ['MP', 'Empaque', 'PT no conforme'];
+const MOMENTOS = ['Arranque / cambio de formato', 'Operación', 'Fin de corrida'];
+const MEDICIONES = ['Pesado', 'Contado', 'Estimado'];
+const DESTINOS_MERMA = ['Se tira', 'Reproceso', 'Retenido Calidad', 'Regresa a almacén'];
+const EQUIPOS_INICIALES = ['Selladora de tapa', 'Codificador', 'Torres de agua fría', 'Envasadora de sobres'];
+const ESTADOS_FACTOR = ['Por confirmar', 'Confirmado con planta'];
 // Formato fijo del CSV para todas las fases; las columnas sin dato salen vacías. Las nuevas van al final para no mover las anteriores.
 const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo','dispositivo','sesion_id','origen','anulado',
   'orden','cliente','oc','producto','area','etapa','equipo','causa','inicio','llega_mtto','fin','minutos','min_respuesta','min_reparacion',
   'cant_entra','cant_sale','unidad','merma','merma_pct','fecha_oc','fecha_pedida','fecha_salida','cant_pedida','cant_entregada',
   'a_tiempo','completo','otif','base_otif','version_app','nota',
-  'turno','documento','procedencia','consolidada','cant_recibida','cant_utilizada','tarimas_pt','tarimas_salida','destino'];
+  'turno','documento','procedencia','consolidada','cant_recibida','cant_utilizada','tarimas_pt','tarimas_salida','destino',
+  'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
+  'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
-  ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador' };
+  ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
+  catalogos:'zs_cap_catalogos' };
 
 const $ = id => document.getElementById(id);
 
@@ -395,53 +456,108 @@ function preguntar(titulo, texto, botones, escribir){
 }
 const avisar = (texto, titulo = 'Aviso') => preguntar(titulo, texto, [{ v: 'ok', t: 'Entendido', c: 'prim' }]);
 
-// Datos de una etapa en la misma ventana. campos: [{k, label, tipo: 'num'|'entero'|'opc', opciones}]; todos obligatorios.
-// Regresa {k: valor} o null si se cancela. No se cierra hasta que todo esté lleno y sea válido.
+// Datos en la misma ventana. campos: [{k, label, tipo: 'num'|'entero'|'opc'|'lista'|'texto', opciones, valor, opcional, cero,
+//   agregar(texto) y textoNuevo para listas que crecen}]. Regresa {k: valor} o null si se cancela; no cierra hasta que todo sea válido.
 function pedirDatos(titulo, texto, campos){
   const p = preguntar(titulo, texto, [{ v: 'ok', t: 'Guardar', c: 'prim' }, { v: null, t: 'Cancelar' }]);
   const cont = $('dlg-campos');
+  const boton = (t, c, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn chico ' + c; b.textContent = t; b.onclick = fn; return b; };
   for (const c of campos) {
     const div = document.createElement('div'); div.className = 'campo';
+    const lb = document.createElement('label'); lb.textContent = c.label + (c.opcional ? ' (opcional)' : '');
     if (c.tipo === 'opc') {
       const fs = document.createElement('fieldset'); fs.className = 'segmentado';
       const lg = document.createElement('legend'); lg.textContent = c.label; fs.append(lg);
-      const lb = document.createElement('label'); lb.textContent = c.label;
       for (const op of c.opciones) {
-        const l = document.createElement('label'), i = document.createElement('input'), s = document.createElement('span');
-        i.type = 'radio'; i.name = 'dc-' + c.k; i.value = op; s.textContent = op; l.append(i, s); fs.append(l);
+        const l = document.createElement('label'), i = document.createElement('input'), sp = document.createElement('span');
+        i.type = 'radio'; i.name = 'dc-' + c.k; i.value = op; i.checked = op === c.valor; sp.textContent = op; l.append(i, sp); fs.append(l);
       }
       div.append(lb, fs);
+    } else if (c.tipo === 'lista') {
+      const sel = document.createElement('select'); sel.id = 'dc-' + c.k; lb.htmlFor = sel.id;
+      const llenar = elegido => { sel.replaceChildren(new Option(c.opcional ? '— Ninguno —' : 'Elige…', ''), ...c.opciones.map(o => new Option(o, o))); sel.value = elegido || ''; };
+      llenar(c.valor);
+      div.append(lb, sel);
+      if (c.agregar) { // poka-yoke: antes de crear una entrada nueva, avisa si se parece a una existente
+        const fila = document.createElement('div'); fila.className = 'nuevo-item'; fila.hidden = true;
+        const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = c.textoNuevo.replace('+ ', '');
+        const aviso = document.createElement('div'); aviso.className = 'parecida'; aviso.hidden = true;
+        let forzar = '';
+        const abrir = boton(c.textoNuevo, '', () => { fila.hidden = false; abrir.hidden = true; inp.focus(); });
+        const cerrar = () => { fila.hidden = true; aviso.hidden = true; abrir.hidden = false; inp.value = ''; forzar = ''; };
+        const usar = nombre => { const n = c.agregar(nombre); if (!n) return; if (!c.opciones.includes(n)) c.opciones = [...c.opciones, n]; llenar(n); cerrar(); };
+        const agregar = () => {
+          const v = inp.value.trim(); if (!v) return;
+          const igual = (c.todas || c.opciones).find(o => normal(o) === normal(v));
+          if (igual) return usar(igual);
+          const par = parecida(v, c.todas || c.opciones);
+          if (par && forzar !== v) {
+            aviso.replaceChildren(`Se parece a «${par}». ¿Es la misma?`, document.createElement('br'),
+              boton(`Usar «${par}»`, 'prim', () => usar(par)), ' ', boton(`Agregar «${v}»`, '', () => { forzar = v; agregar(); }));
+            aviso.hidden = false; return;
+          }
+          usar(v);
+        };
+        fila.append(inp, boton('Agregar', 'prim', agregar));
+        abrir.style.marginTop = '8px';
+        div.append(abrir, fila, aviso);
+      }
     } else {
-      const lb = document.createElement('label'), i = document.createElement('input');
-      lb.textContent = c.label; lb.htmlFor = 'dc-' + c.k;
-      i.type = 'number'; i.id = 'dc-' + c.k; i.min = '0'; i.step = c.tipo === 'entero' ? '1' : 'any';
-      i.inputMode = c.tipo === 'entero' ? 'numeric' : 'decimal';
+      const i = document.createElement('input'); i.id = 'dc-' + c.k; lb.htmlFor = i.id;
+      if (c.tipo === 'texto') {
+        i.type = 'text'; i.autocapitalize = 'sentences';
+        if (c.sugerencias) { const dl = document.createElement('datalist'); dl.id = 'dl-dc-' + c.k; dl.append(...c.sugerencias.map(x => new Option(x, x))); i.setAttribute('list', dl.id); div.append(dl); }
+      } else {
+        i.type = 'number'; i.min = '0'; i.step = c.tipo === 'entero' ? '1' : 'any'; i.inputMode = c.tipo === 'entero' ? 'numeric' : 'decimal';
+      }
+      i.value = c.valor ?? '';
       div.append(lb, i);
     }
     cont.append(div);
   }
   let resultado = null;
+  const falta = m => { $('dlg-error').textContent = m; $('dlg-error').hidden = false; };
   const btn = $('dlg-b').firstChild, guardarOrig = btn.onclick;
   btn.onclick = () => {
     const datos = {};
     for (const c of campos) {
       if (c.tipo === 'opc') {
         const sel = cont.querySelector(`input[name="dc-${c.k}"]:checked`);
-        if (!sel) return falta(`Elige: ${c.label}.`);
-        datos[c.k] = sel.value;
+        if (!sel && !c.opcional) return falta(`Elige: ${c.label}.`);
+        datos[c.k] = sel ? sel.value : '';
+      } else if (c.tipo === 'lista' || c.tipo === 'texto') {
+        const v = $('dc-' + c.k).value.trim();
+        if (!v && !c.opcional) return falta(c.tipo === 'lista' ? `Elige: ${c.label}.` : `Escribe: ${c.label}.`);
+        datos[c.k] = v;
       } else {
         const v = $('dc-' + c.k).value, n = Number(v);
-        if (v === '' || !(n > 0)) return falta(`Escribe ${c.label.toLowerCase()} (mayor que 0).`);
+        if (v === '' || !(c.cero ? n >= 0 : n > 0)) return falta(`Escribe ${c.label.toLowerCase()} (${c.cero ? '0 o más' : 'mayor que 0'}).`);
         if (c.tipo === 'entero' && !Number.isInteger(n)) return falta(`${c.label}: solo números enteros.`);
         datos[c.k] = n;
       }
     }
     resultado = datos; guardarOrig();
   };
-  const falta = m => { $('dlg-error').textContent = m; $('dlg-error').hidden = false; };
-  const primero = cont.querySelector('input'); if (primero && primero.type === 'number') primero.focus();
+  const primero = cont.querySelector('input'); if (primero && primero.type !== 'radio') primero.focus();
   return p.then(v => v === 'ok' ? resultado : null);
 }
+
+// Comparar nombres sin acentos ni mayúsculas, para avisar de causas o equipos repetidos con otra escritura.
+const normal = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function distancia(a, b){
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// Se parece si es igual sin acentos, si una contiene a la otra o si difiere en 2 letras o menos.
+function parecida(texto, lista){
+  const t = normal(texto);
+  return lista.find(x => { const n = normal(x), m = Math.min(n.length, t.length);
+    return n === t || (m >= 4 && (n.includes(t) || t.includes(n))) || (m >= 5 && distancia(n, t) <= 2); }) || null;
+}
+console.assert(parecida('Atoramiento', ['Atoramento']) && parecida('Fuga de agua', ['fuga  de AGUA']) && !parecida('Codificador', ['Selladora de tapa']), 'parecida');
 
 let usuario = leer(K.usuario, null);   // {nombre, dispositivo}
 let registros = leer(K.registros, []);
@@ -449,6 +565,8 @@ let ordenes = leer(K.ordenes, []);     // [{orden, cliente, oc, producto, creada
 let sesion = leer(K.sesion, null);     // {id, inicio}
 let ordenActual = leer(K.ordenActual, '');
 let exportados = new Set(leer(K.exportados, []));
+// Catálogos de merma: quitar solo desactiva (activo: false), para que los registros viejos conserven su texto.
+let catalogos = leer(K.catalogos, null) || { causas: [], equipos: EQUIPOS_INICIALES.map(nombre => ({ nombre, activo: true })), factores: [] };
 let vista = 'orden';
 
 // ---------- Fechas ----------
@@ -552,14 +670,14 @@ function valoresUsados(campo){ return [...new Set(ordenes.map(o => o[campo]).fil
 function llenarDatalist(id, campo){ $(id).replaceChildren(...valoresUsados(campo).map(v => { const o = document.createElement('option'); o.value = v; return o; })); }
 function elegirOrden(v){ ordenActual = v; guardar(K.ordenActual, v); render(); }
 
-$('sel-orden').onchange = e => elegirOrden(e.target.value);
+$('sel-orden').onchange = $('sel-orden-m').onchange = e => elegirOrden(e.target.value);
 let editando = null; // orden que se está editando; null = orden nueva
 function abrirFormOrden(o){
   editando = o ? o.orden : null;
   $('form-orden').reset(); $('form-orden').hidden = false;
   $('form-orden-titulo').textContent = o ? `Editar orden ${o.orden}` : 'Nueva orden';
-  if (o) { $('no-orden').value = o.orden; $('no-cliente').value = o.cliente || ''; $('no-oc').value = o.oc || ''; $('no-producto').value = o.producto || ''; }
-  llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto');
+  if (o) { $('no-orden').value = o.orden; $('no-cliente').value = o.cliente || ''; $('no-oc').value = o.oc || ''; $('no-producto').value = o.producto || ''; $('no-linea').value = o.linea || ''; }
+  llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
   $('no-orden').focus();
 }
 $('btn-nueva').onclick = () => abrirFormOrden(null);
@@ -568,14 +686,14 @@ $('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = nul
 $('form-orden').onsubmit = async e => {
   e.preventDefault();
   const v = id => $(id).value.trim();
-  const datos = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto') };
+  const datos = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto'), linea: v('no-linea') };
   if (!datos.orden) { await avisar('Escribe la orden o el lote.', 'Falta la orden'); $('no-orden').focus(); return; }
   const existe = ordenes.find(o => !o.anulada && o.orden !== editando && o.orden.toLowerCase() === datos.orden.toLowerCase());
   if (existe && editando) { await avisar(`Ya hay otra orden "${existe.orden}". Usa otro nombre.`, 'Orden repetida'); return; }
   if (existe) { await avisar(`La orden "${existe.orden}" ya existe. Se seleccionó para que no quede duplicada.`, 'Orden repetida'); $('form-orden').hidden = true; elegirOrden(existe.orden); return; }
   if (editando) {
     const o = orden(), ahora = isoLocal(new Date()), viejo = editando;
-    const cambio = ['orden', 'cliente', 'oc', 'producto'].some(k => (o[k] || '') !== datos[k]);
+    const cambio = ['orden', 'cliente', 'oc', 'producto', 'linea'].some(k => (o[k] || '') !== datos[k]);
     // la corrección también llega a las etapas ya registradas, con rastro en la nota
     if (cambio && !guardarTodo(() => {
       Object.assign(orden(), datos);
@@ -708,23 +826,31 @@ async function datosEtapa(o, etapa, lista){
   return {};
 }
 
-async function registrarEtapa(o, i, lista){
-  const origen = origenSel(), etapa = ETAPAS[i];
+// Hora, origen y documento de un registro (etapa o merma). La hora observada queda fija en el toque. null si falta algo o se cancela.
+async function prepararOrigen(){
+  const origen = origenSel();
   let evento = isoLocal(new Date()), documento = '';
   if (origen !== 'observado') {
     const v = $('in-evento').value;
-    if (!v) { await avisar('Escribe en "¿Cuándo pasó?" la hora que dice el documento o el testimonio.', 'Falta la hora'); $('in-evento').focus(); return; }
+    if (!v) { await avisar('Escribe en "¿Cuándo pasó?" la hora que dice el documento o el testimonio.', 'Falta la hora'); $('in-evento').focus(); return null; }
     evento = v.length === 16 ? v + ':00' : v.slice(0, 19);
-    if (evento > isoLocal(new Date())) { await avisar('La hora del evento no puede ser en el futuro.', 'Revisa la hora'); return; }
+    if (evento > isoLocal(new Date())) { await avisar('La hora del evento no puede ser en el futuro.', 'Revisa la hora'); return null; }
     if (origen === 'documento' && !(documento = $('in-doc').value.trim())) {
-      await avisar('Escribe el nombre o folio del documento de donde sale la hora.', 'Falta el documento'); $('in-doc').focus(); return;
+      await avisar('Escribe el nombre o folio del documento de donde sale la hora.', 'Falta el documento'); $('in-doc').focus(); return null;
     }
   } else if (!sesion) {
     const r = await preguntar('No hay observación activa', 'Lo que observas debe quedar ligado a una observación para poder decir "N eventos en X horas observadas".',
       [{ v: 'iniciar', t: 'Iniciar observación y registrar', c: 'ok' }, { v: 'sin', t: 'Registrar sin observación' }, { v: null, t: 'Cancelar' }]);
-    if (!r || (r === 'iniciar' && !(await iniciarSesion(evento)))) return;
-    if (bloqueadaDeNoche(etapa)) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
+    if (!r || (r === 'iniciar' && !(await iniciarSesion(evento)))) return null;
   }
+  return { origen, evento, documento };
+}
+
+async function registrarEtapa(o, i, lista){
+  const etapa = ETAPAS[i], pre = await prepararOrigen();
+  if (!pre) return;
+  const { origen, evento, documento } = pre;
+  if (bloqueadaDeNoche(etapa)) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
   const j = anteriorRegistrada(lista, i), k = lista.findIndex((x, n) => n > i && x);
   const choca = j >= 0 && evento < lista[j].fecha_hora_evento ? `es anterior a «${ETAPAS[j]}» (${hora(lista[j].fecha_hora_evento)})`
               : k >= 0 && evento > lista[k].fecha_hora_evento ? `es posterior a «${ETAPAS[k]}» (${hora(lista[k].fecha_hora_evento)})` : '';
@@ -734,7 +860,7 @@ async function registrarEtapa(o, i, lista){
   if (!extra) return;
 
   const r = nuevoRegistro(Object.assign({ tipo: 'etapa', etapa, orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto,
-    origen, documento, fecha_hora_evento: evento }, extra));
+    linea: o.linea || '', origen, documento, fecha_hora_evento: evento }, extra));
   if (!r) return;
   if ((o.saltadas || []).includes(etapa)) { o.saltadas = o.saltadas.filter(e => e !== etapa); guardar(K.ordenes, ordenes); }
   reiniciarOrigen();
@@ -775,8 +901,8 @@ function resumenDatos(r){
   }[r.etapa] || '';
 }
 
-function renderOrden(){
-  const sel = $('sel-orden');
+// Llena un selector de órdenes (en proceso y con salida) y regresa las que siguen en proceso.
+function llenarSelectOrdenes(sel){
   const vigentes = [], terminadas = [];
   const activas = ordenes.filter(o => !o.anulada);
   for (const o of activas) (etapasDe(o.orden)[ETAPAS.length - 1] ? terminadas : vigentes).push(o);
@@ -788,6 +914,11 @@ function renderOrden(){
   sel.replaceChildren(...items);
   if (!orden()) ordenActual = '';
   sel.value = ordenActual;
+  return vigentes;
+}
+
+function renderOrden(){
+  const vigentes = llenarSelectOrdenes($('sel-orden'));
 
   // Tablero: cada orden abierta con el botón de su siguiente etapa, para seguir varias a la vez sin cambiar de orden.
   $('tablero').hidden = !vigentes.length;
@@ -872,6 +1003,183 @@ function renderOrden(){
     : '';
 }
 
+// ---------- Merma ----------
+const activos = lista => catalogos[lista].filter(x => x.activo).map(x => x.nombre);
+// Agrega (o reactiva si ya existía con la misma escritura) y guarda; regresa el nombre o null si no se pudo guardar.
+function agregarCatalogo(lista, nombre){
+  const ya = catalogos[lista].find(x => normal(x.nombre) === normal(nombre));
+  const antes = JSON.stringify(catalogos);
+  if (ya) ya.activo = true; else catalogos[lista].push({ nombre, activo: true });
+  if (guardar(K.catalogos, catalogos)) return ya ? ya.nombre : nombre;
+  catalogos = JSON.parse(antes); return null;
+}
+const factoresDe = producto => catalogos.factores.filter(f => f.activo && producto && normal(f.producto) === normal(producto));
+const redondo = (n, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
+const cierreDe = orden => registros.filter(r => r.tipo === 'cierre' && r.anulado === 'no' && r.orden === orden).pop() || null;
+// Merma de MP en kg de los eventos medidos (pesados o contados): lo estimado queda fuera del indicador.
+const kgEventosMP = orden => redondo(registros.filter(r => r.tipo === 'merma' && r.anulado === 'no' && r.orden === orden &&
+  r.material === 'MP' && r.unidad === 'Kg' && r.medicion !== 'Estimado').reduce((t, r) => t + r.cant_merma, 0));
+// Balance de un cierre. kg solo con factor; % solo con factor confirmado con planta. Nunca se mezclan kg y piezas en un %.
+function balance(r){
+  if (!r.kg_mp_por_pieza) return {};
+  const merma_kg = redondo(r.mp_entregada_kg - r.pt_conforme_u * r.piezas_por_unidad * r.kg_mp_por_pieza - r.devuelto_kg);
+  return { merma_kg, merma_pct: r.factor_estado === 'Confirmado con planta' ? redondo(merma_kg / r.mp_entregada_kg * 100) : undefined,
+           dif_eventos_kg: redondo(merma_kg - kgEventosMP(r.orden)) };
+}
+console.assert(balance({ orden: '-', mp_entregada_kg: 100, pt_conforme_u: 10, piezas_por_unidad: 12, kg_mp_por_pieza: 0.75, devuelto_kg: 2,
+  factor_estado: 'Confirmado con planta' }).merma_pct === 8, 'balance');
+function textoBalance(r){
+  const b = balance(r);
+  const lineas = [`MP entregada ${r.mp_entregada_kg} kg · PT conforme ${r.pt_conforme_u} ${r.unidad_empaque ? `unidades (${r.unidad_empaque})` : 'unidades'} · devuelto ${r.devuelto_kg} kg · ` +
+    `PT no conforme ${cuenta(r.pt_no_conforme_pz, 'pieza')}${r.destino_merma ? ` (${r.destino_merma})` : ''}`];
+  if (b.merma_kg === undefined) lineas.push('Sin factor piezas-peso para este producto: merma_kg y merma_pct quedan vacíos. Se agrega en Más › Catálogos.');
+  else {
+    lineas.push(`Merma del balance: ${b.merma_kg} kg · ` + (b.merma_pct !== undefined ? `${b.merma_pct} % de la MP entregada` : '% pendiente: factor por confirmar con planta'));
+    lineas.push(`Mermas de MP medidas en kg (sin estimadas): ${kgEventosMP(r.orden)} kg · Diferencia con el balance: ${b.dif_eventos_kg} kg`);
+  }
+  return lineas.join('\n');
+}
+
+async function registrarMerma(){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const d = await pedirDatos(`${o.orden} · Merma`, '', [
+    { k: 'material', label: 'Material', tipo: 'opc', opciones: MATERIALES },
+    { k: 'momento', label: 'Momento', tipo: 'opc', opciones: MOMENTOS },
+    { k: 'cant_merma', label: 'Cantidad', tipo: 'num' },
+    { k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES },
+    { k: 'medicion', label: 'Cómo se midió', tipo: 'opc', opciones: MEDICIONES },
+    { k: 'causa', label: 'Causa', tipo: 'lista', opciones: activos('causas'), todas: catalogos.causas.map(x => x.nombre),
+      agregar: v => agregarCatalogo('causas', v), textoNuevo: '+ Nueva causa' },
+    { k: 'destino_merma', label: 'Destino', tipo: 'opc', opciones: DESTINOS_MERMA },
+    { k: 'equipo', label: 'Equipo', tipo: 'lista', opcional: true, opciones: activos('equipos'), todas: catalogos.equipos.map(x => x.nombre),
+      agregar: v => agregarCatalogo('equipos', v), textoNuevo: '+ Nuevo equipo' }]);
+  if (!d) return;
+  const r = nuevoRegistro(Object.assign({ tipo: 'merma', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
+    origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d));
+  if (!r) return;
+  reiniciarOrigen();
+  pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
+  aviso(`${o.orden} · merma de ${d.material}: ${d.cant_merma} ${d.unidad}${d.medicion === 'Estimado' ? ' (estimada)' : ''}`, r);
+}
+
+async function cerrarOrden(){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const previo = cierreDe(o.orden);
+  if (previo && await preguntar(`${o.orden} ya tiene cierre`, `Se registró a las ${hora(previo.fecha_hora_evento)}. Si haces uno nuevo, el anterior queda anulado (sigue en el CSV como rastro).`,
+    [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Hacer un cierre nuevo' }]) !== 'si') return;
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const fs = factoresDe(o.producto), mp = etapasDe(o.orden)[0];
+  const campos = [
+    { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: mp && mp.unidad === 'Kg' ? mp.cant_recibida : '' },
+    { k: 'pt_conforme_u', label: 'PT conforme (unidades de empaque)', tipo: 'num', cero: true },
+    ...(fs.length ? [{ k: 'unidad_empaque', label: 'Unidad de empaque', tipo: 'opc', opciones: fs.map(f => f.unidad), valor: fs.length === 1 ? fs[0].unidad : '' }] : []),
+    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true },
+    { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true },
+    { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true }];
+  const aviso0 = fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`;
+  let d;
+  for (;;) {
+    d = await pedirDatos(`${o.orden} · Cierre de orden`, aviso0, campos);
+    if (!d) return;
+    if (!(d.pt_no_conforme_pz > 0 && !d.destino_merma)) break;
+    await avisar('Hay PT no conforme: elige su destino.', 'Falta el destino');
+    campos.forEach(c => { c.valor = d[c.k]; });
+  }
+  const f = fs.find(x => x.unidad === d.unidad_empaque);
+  const datos = Object.assign({ tipo: 'cierre', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
+    origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d,
+    f ? { piezas_por_unidad: f.piezas, kg_mp_por_pieza: f.kg_pieza, factor_estado: f.estado } : {}); // copia del factor: rastro de con qué se calculó
+  const b = balance(datos);
+  if (b.merma_kg < 0 && await preguntar('Revisa el balance', `La merma da ${b.merma_kg} kg (negativa): el PT conforme pesa más que la MP entregada. Revisa las cantidades o el factor.`,
+    [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) !== 'si') return;
+  const r = nuevoRegistro(datos);
+  if (!r) return;
+  if (previo) anular(previo);
+  reiniciarOrigen(); render();
+  await avisar(textoBalance(r), `${o.orden} · Cierre guardado`);
+}
+
+async function tocarMerma(r){
+  if (r.anulado !== 'no') return;
+  if (await preguntar('Anular esta merma', `${resumenMerma(r)}\n\nQueda en el CSV como anulada, para que quede rastro.`,
+    [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Anular', c: 'borde-peligro' }]) === 'si' && anular(r)) render();
+}
+const resumenMerma = r => `${hora(r.fecha_hora_evento)} · ${r.material}: ${r.cant_merma} ${r.unidad} · ${r.causa} → ${r.destino_merma}`;
+
+function renderMerma(){
+  llenarSelectOrdenes($('sel-orden-m'));
+  const o = orden();
+  $('merma-resumen').textContent = o
+    ? [o.producto ? `Producto: ${o.producto}` : 'Sin producto', o.linea ? `Línea: ${o.linea}` : 'Sin línea (agrégala con Editar orden)', sesion && sesion.turno && `Turno: ${sesion.turno}`].filter(Boolean).join(' · ')
+    : 'Elige la orden en la que estás midiendo la merma.';
+  $('btn-merma').disabled = $('btn-cierre').disabled = !o;
+  const items = o ? registros.filter(r => r.tipo === 'merma' && r.orden === o.orden).reverse() : [];
+  $('lista-merma').replaceChildren(...(items.length ? items.map(r => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'merma-item' + (r.anulado === 'no' ? '' : ' anulada');
+    const t = document.createElement('b'); t.textContent = resumenMerma(r);
+    const s = document.createElement('span');
+    s.textContent = [r.momento, r.medicion === 'Estimado' ? 'ESTIMADA (fuera del indicador)' : r.medicion, r.equipo && `Equipo: ${r.equipo}`,
+      r.origen === 'testimonio' ? 'Por confirmar (testimonio)' : r.origen === 'documento' ? `Documento: ${r.documento}` : '', r.anulado === 'no' ? '' : 'anulada'].filter(Boolean).join(' · ');
+    b.append(t, s); b.onclick = () => tocarMerma(r);
+    return b;
+  }) : [Object.assign(document.createElement('p'), { className: 'ayuda', textContent: o ? 'Sin mermas registradas.' : '' })]));
+  const c = o && cierreDe(o.orden);
+  $('cierre-resumen').textContent = !o ? '' : c ? textoBalance(c) : `Todavía no se cierra esta orden. Mermas de MP medidas en kg hasta ahora: ${kgEventosMP(o.orden)} kg.`;
+}
+$('btn-merma').onclick = registrarMerma;
+$('btn-cierre').onclick = cerrarOrden;
+
+// ---------- Catálogos (en Más) ----------
+function filaCatalogo(titulo, detalle, activo, botones){
+  const f = document.createElement('div'); f.className = 'fila-cat' + (activo ? '' : ' inactiva');
+  const q = document.createElement('div'); q.className = 'quien';
+  const b = document.createElement('b'); b.textContent = titulo; q.append(b);
+  if (detalle) { const s = document.createElement('span'); s.textContent = detalle; q.append(s); }
+  f.append(q, ...botones.map(([t, fn]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn chico'; x.textContent = t; x.onclick = fn; return x; }));
+  return f;
+}
+const alternar = x => { x.activo = !x.activo; if (!guardar(K.catalogos, catalogos)) x.activo = !x.activo; renderMas(); };
+function renderCatalogos(){
+  const vacio = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
+  for (const [lista, cont, vacia] of [['causas', 'cat-causas', 'Todavía no hay causas: se agregan desde la ventana de merma.'], ['equipos', 'cat-equipos', 'Sin equipos.']])
+    $(cont).replaceChildren(...(catalogos[lista].length ? catalogos[lista].map(x => filaCatalogo(x.nombre, x.activo ? '' : 'Desactivada', x.activo,
+      [[x.activo ? 'Quitar' : 'Reactivar', () => alternar(x)]])) : [vacio(vacia)]));
+  $('cat-factores').replaceChildren(...(catalogos.factores.length ? catalogos.factores.map(f => filaCatalogo(`${f.producto} · por ${f.unidad}`,
+    `${f.piezas} piezas por ${f.unidad} · ${f.kg_pieza} kg de MP por pieza · ${f.estado}${f.activo ? '' : ' · desactivado'}`, f.activo,
+    [['Editar', () => editarFactor(f)], [f.activo ? 'Quitar' : 'Reactivar', () => alternar(f)]])) : [vacio('Sin factores: sin ellos no se calcula la merma en kg del cierre.')]));
+}
+async function editarFactor(f){
+  const d = await pedirDatos(f ? 'Editar factor piezas-peso' : 'Nuevo factor piezas-peso', 'Kg de MP por pieza según la fórmula del producto, no el peso del envase (hay envase y, en productos cocidos, evaporación).', [
+    { k: 'producto', label: 'Producto', tipo: 'texto', sugerencias: [...new Set(ordenes.map(o => o.producto).filter(Boolean))], valor: f && f.producto },
+    { k: 'unidad', label: 'Unidad de empaque (ej. caja)', tipo: 'texto', sugerencias: [...new Set(catalogos.factores.map(x => x.unidad))], valor: f && f.unidad },
+    { k: 'piezas', label: 'Piezas por unidad de empaque', tipo: 'entero', valor: f && f.piezas },
+    { k: 'kg_pieza', label: 'Kg de MP por pieza (según fórmula)', tipo: 'num', valor: f && f.kg_pieza },
+    { k: 'estado', label: 'Estado del factor', tipo: 'opc', opciones: ESTADOS_FACTOR, valor: f ? f.estado : 'Por confirmar' }]);
+  if (!d) return;
+  const repetido = catalogos.factores.find(x => x !== f && x.activo && normal(x.producto) === normal(d.producto) && normal(x.unidad) === normal(d.unidad));
+  if (repetido) { await avisar(`Ya hay un factor para «${repetido.producto}» por ${repetido.unidad}. Edítalo en lugar de crear otro.`, 'Factor repetido'); return; }
+  const antes = JSON.stringify(catalogos);
+  if (f) Object.assign(f, d); else catalogos.factores.push(Object.assign(d, { activo: true }));
+  if (!guardar(K.catalogos, catalogos)) catalogos = JSON.parse(antes);
+  renderMas();
+}
+$('cat-nuevo-factor').onclick = () => editarFactor(null);
+$('cat-nuevo-equipo').onclick = async () => {
+  const d = await pedirDatos('Nuevo equipo', '', [{ k: 'nombre', label: 'Nombre del equipo', tipo: 'texto' }]);
+  if (!d) return;
+  const par = parecida(d.nombre, catalogos.equipos.map(x => x.nombre));
+  const r = par && normal(par) !== normal(d.nombre)
+    ? await preguntar('Se parece a otro equipo', `«${d.nombre}» se parece a «${par}». ¿Es el mismo?`, [{ v: par, t: `Es «${par}»`, c: 'prim' }, { v: d.nombre, t: `Agregar «${d.nombre}»` }, { v: null, t: 'Cancelar' }])
+    : (par || d.nombre);
+  if (r) agregarCatalogo('equipos', r);
+  renderMas();
+};
+
 // ---------- Aviso con deshacer ----------
 let toastTimer = null, toastReg = null;
 function aviso(texto, r){
@@ -892,6 +1200,7 @@ function calculados(r, cache){
     if (j >= 0) c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento);
   }
   if (r.tipo === 'sesion' && r.inicio && r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
+  if (r.tipo === 'cierre') Object.assign(c, balance(r));
   return c;
 }
 function celda(v){
@@ -951,6 +1260,7 @@ function renderMas(){
   $('m-reg').textContent = registros.length; $('m-version').textContent = VERSION;
   $('no-instalada').hidden = instalada();
   document.querySelector(`input[name=sep][value="${separador()}"]`).checked = true;
+  renderCatalogos();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { $('m-persist').textContent = p ? 'Sí' : 'No (exporta seguido)'; });
   else $('m-persist').textContent = 'No disponible (exporta seguido)';
 }
@@ -990,14 +1300,16 @@ function mostrar(v){ vista = v; render(); document.querySelector('main').scrollT
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => mostrar(b.dataset.v));
 function render(){
   if (!usuario) vista = 'inicio';
-  ['inicio', 'orden', 'exportar', 'mas'].forEach(v => { $('v-' + v).hidden = v !== vista; });
+  ['inicio', 'orden', 'merma', 'exportar', 'mas'].forEach(v => { $('v-' + v).hidden = v !== vista; });
+  $('slot-origen-' + (vista === 'merma' ? 'merma' : 'orden')).append($('tarjeta-origen')); // una sola tarjeta de origen para Orden y Merma
   $('nav').hidden = vista === 'inicio';
   $('app').classList.toggle('sin-nav', vista === 'inicio');
   document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === vista ? 'page' : 'false'));
   const pend = usuario ? sinExportar() : 0;
-  $('badge-pend').hidden = !pend; $('badge-pend').textContent = pend > 99 ? '99+' : pend;
+  $('badge-pend').hidden = !pend; $('badge-pend').textContent = pend ? (pend > 99 ? '99+' : pend) : '';
   renderBarra();
   if (vista === 'orden') renderOrden();
+  if (vista === 'merma') renderMerma();
   if (vista === 'exportar') renderExportar();
   if (vista === 'mas') renderMas();
 }

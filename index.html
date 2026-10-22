@@ -379,7 +379,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -397,7 +397,7 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'a_tiempo','completo','otif','base_otif','version_app','nota',
   'turno','documento','procedencia','consolidada','cant_recibida','cant_utilizada','tarimas_pt','tarimas_salida','destino',
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
-  'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg'];
+  'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
   catalogos:'zs_cap_catalogos' };
@@ -458,7 +458,7 @@ const avisar = (texto, titulo = 'Aviso') => preguntar(titulo, texto, [{ v: 'ok',
 
 // Datos en la misma ventana. campos: [{k, label, tipo: 'num'|'entero'|'opc'|'lista'|'texto', opciones, valor, opcional, cero,
 //   agregar(texto) y textoNuevo para listas que crecen}]. Regresa {k: valor} o null si se cancela; no cierra hasta que todo sea válido.
-function pedirDatos(titulo, texto, campos){
+function pedirDatos(titulo, texto, campos, validar){
   const p = preguntar(titulo, texto, [{ v: 'ok', t: 'Guardar', c: 'prim' }, { v: null, t: 'Cancelar' }]);
   const cont = $('dlg-campos');
   const boton = (t, c, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn chico ' + c; b.textContent = t; b.onclick = fn; return b; };
@@ -536,6 +536,8 @@ function pedirDatos(titulo, texto, campos){
         datos[c.k] = n;
       }
     }
+    const error = validar && validar(datos);
+    if (error) return falta(error);
     resultado = datos; guardarOrig();
   };
   const primero = cont.querySelector('input'); if (primero && primero.type !== 'radio') primero.focus();
@@ -618,7 +620,7 @@ async function iniciarSesion(desde){
     [{ v: 'mañana', t: 'Mañana', c: 'prim' }, { v: 'tarde', t: 'Tarde', c: 'prim' }, { v: 'noche', t: 'Noche', c: 'prim' }, { v: null, t: 'Cancelar' }]);
   if (!turno) return false;
   const id = 'S-' + nuevoId();
-  const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora, turno });
+  const r = nuevoRegistro({ tipo: 'sesion', sesion_id: id, inicio: ahora, fecha_hora_evento: ahora, turno });
   if (!r) return false;
   sesion = { id, inicio: ahora, turno };
   if (!guardar(K.sesion, sesion)) { sesion = null; anular(r); }
@@ -1055,7 +1057,10 @@ async function registrarMerma(){
       agregar: v => agregarCatalogo('causas', v), textoNuevo: '+ Nueva causa' },
     { k: 'destino_merma', label: 'Destino', tipo: 'opc', opciones: DESTINOS_MERMA },
     { k: 'equipo', label: 'Equipo', tipo: 'lista', opcional: true, opciones: activos('equipos'), todas: catalogos.equipos.map(x => x.nombre),
-      agregar: v => agregarCatalogo('equipos', v), textoNuevo: '+ Nuevo equipo' }]);
+      agregar: v => agregarCatalogo('equipos', v), textoNuevo: '+ Nuevo equipo' }],
+    // poka-yoke: lo contado va en piezas y lo pesado en Kg o Lt
+    d => d.medicion === 'Contado' && d.unidad !== 'Unidades' ? 'Lo contado va en Unidades. Cambia la unidad o di cómo se midió.'
+       : d.medicion === 'Pesado' && d.unidad === 'Unidades' ? 'Lo pesado va en Kg o Lt. Cambia la unidad o di cómo se midió.' : '');
   if (!d) return;
   const r = nuevoRegistro(Object.assign({ tipo: 'merma', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
     origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d));
@@ -1197,7 +1202,7 @@ function calculados(r, cache){
   if (r.tipo === 'etapa' && r.anulado === 'no') {
     if (!cache.has(r.orden)) cache.set(r.orden, etapasDe(r.orden));
     const lista = cache.get(r.orden), j = anteriorRegistrada(lista, ETAPAS.indexOf(r.etapa));
-    if (j >= 0) c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento);
+    if (j >= 0) { c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = ETAPAS[j]; }
   }
   if (r.tipo === 'sesion' && r.inicio && r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
   if (r.tipo === 'cierre') Object.assign(c, balance(r));

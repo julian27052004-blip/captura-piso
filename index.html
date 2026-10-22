@@ -426,7 +426,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.4.1';
+const VERSION = '0.4.2';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -796,7 +796,13 @@ function abrirFormOrden(o){
   llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
   $('no-orden').focus();
 }
-$('btn-nueva').onclick = () => abrirFormOC();
+$('btn-nueva').onclick = async () => {
+  if (!sesion) { // la OC queda ligada a la observación, su turno y su hora
+    if (await preguntar('Primero inicia la observación', 'La OC se captura dentro de una observación.',
+      [{ v: 'si', t: 'Iniciar observación', c: 'ok' }, { v: null, t: 'Cancelar' }]) !== 'si' || !(await iniciarSesion())) return;
+  }
+  abrirFormOC();
+};
 $('btn-editar').onclick = () => abrirFormOrden(orden());
 $('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = null; };
 $('no-mas-insumo').onclick = () => filaInsumo($('no-insumos')).querySelector('input').focus();
@@ -935,9 +941,11 @@ const revisar = async texto => await preguntar('Revisa la cantidad', texto, [{ v
 const sinMateriales = async (titulo, texto) => await preguntar(titulo, texto, [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Registrar solo la hora' }]) === 'si' ? {} : null;
 // Momento 2 · Almacén MP: compra o del cliente, material, unidad, cantidad. El lote del proveedor liga la MP con el lote de PT.
 // El material sale de los insumos de la orden (de ahí también si es MP o empaque). null si la orden no tiene insumos.
+const pendientes = o => (o.insumos || []).filter(i => !entradasDe(o.orden).some(e => e.material_nombre === i.nombre));
 async function pedirEntrada(o, titulo, texto){
-  const ins = o.insumos || [];
-  if (!ins.length) { await avisar('Esta orden no tiene insumos. Agrégalos con «Editar orden» y vuelve a intentar.', 'Sin insumos'); return null; }
+  const ins = pendientes(o); // los que ya entraron salen del menú
+  if (!(o.insumos || []).length) { await avisar('Esta orden no tiene insumos. Agrégalos con «Editar orden» y vuelve a intentar.', 'Sin insumos'); return null; }
+  if (!ins.length) { await avisar('Ya entraron todos los insumos de la OC. Si falta uno, agrégalo con «Editar orden».', 'Insumos completos'); return null; }
   const d = await pedirDatos(titulo, texto, [
     { k: 'tipo_entrada', label: '¿Compra o material del cliente?', tipo: 'opc', opciones: TIPOS_ENTRADA },
     { k: 'material_nombre', label: 'Material que ingresa', tipo: 'opc', opciones: ins.map(i => i.nombre) },
@@ -945,10 +953,7 @@ async function pedirEntrada(o, titulo, texto){
     { k: 'cant_recibida', label: 'Cantidad', tipo: 'num' },
     { k: 'lote_proveedor', label: 'Lote del proveedor', tipo: 'texto' },
     { k: 'procedencia', label: 'Procedencia', tipo: 'opc', opciones: LUGARES },
-    { k: 'consolidada', label: '¿Ya viene consolidada?', tipo: 'opc', opciones: ['Sí', 'No'] }],
-    // poka-yoke: un insumo siempre en la misma unidad dentro de la orden, para poder sumar lo que llegó
-    x => { const e = entradasDe(o.orden).find(y => y.material_nombre === x.material_nombre && y.unidad && y.unidad !== x.unidad);
-           return e ? `${x.material_nombre} ya entró en ${e.unidad} en esta orden. Usa la misma unidad.` : ''; });
+    { k: 'consolidada', label: '¿Ya viene consolidada?', tipo: 'opc', opciones: ['Sí', 'No'] }]);
   return d && Object.assign(d, { material: ins.find(i => i.nombre === d.material_nombre).tipo, consolidada: d.consolidada === 'Sí' ? 'sí' : 'no' });
 }
 let pausaHasta = 0; // anti doble toque
@@ -957,6 +962,13 @@ async function tocarEtapa(o, i){
   if (!o || Date.now() < pausaHasta) return;
   const { lista, est, ultima, siguiente } = estadoOrden(o);
   if (est[i] === 'hecha') return rehacerDesde(o, i, lista);
+  const falta = i > 0 ? pendientes(o) : [];
+  if (falta.length) { // poka-yoke: ninguna estación avanza hasta que entren todos los insumos de la OC
+    if (!lista[0]) { await avisar(`Primero registra «MP recibida» con los ${falta.length} insumos de la OC.`, 'Faltan insumos'); return; }
+    if (await preguntar('Faltan insumos', `No se puede pasar a «${ETAPAS[i]}» hasta que entren todos los insumos de la OC.\nFaltan: ${falta.map(x => x.nombre).join(', ')}.`,
+      [{ v: 'si', t: 'Registrar los que faltan', c: 'prim' }, { v: null, t: 'Cancelar' }]) === 'si') await otraEntrada();
+    return;
+  }
   if (est[i] === 'noaplica') {
     await avisar('La MP vino consolidada, así que MP liberada no aplica en esta orden.\nSi eso está mal, toca «MP recibida» y rehazla.', 'No aplica');
     return;
@@ -985,7 +997,7 @@ async function tocarEtapa(o, i){
 async function datosEtapa(o, etapa, lista){
   const titulo = `${o.orden} · ${etapa}`;
   if (etapa === 'MP recibida') {
-    return pedirEntrada(o, titulo, 'Primera entrada de esta orden. Si llegan más insumos, usa «+ Otra entrada de MP».');
+    return pedirEntrada(o, titulo, `Primer insumo de ${o.insumos && o.insumos.length || 0}. Al guardar se abre el menú con los que faltan.`);
   }
   if (etapa === 'Explosión de materiales') {
     // Receta: cuánto pide esta producción de cada material, al lado de lo que llegó. Propone la de la última orden del mismo producto.
@@ -1095,7 +1107,7 @@ async function registrarEtapa(o, i, lista){
   const r = armarRegistro(Object.assign({ tipo: 'etapa', etapa }, base, datos));
   const filas = hijos.map(h => armarRegistro(Object.assign({ etapa, etapa_ref: r.id }, base, h)));
   if (!guardarTodo(() => { registros.push(r, ...filas); if ((o.saltadas || []).includes(etapa)) o.saltadas = o.saltadas.filter(e => e !== etapa); })) return;
-  reiniciarOrigen();
+  if (etapa === 'MP recibida') { render(); await entradasRestantes(o, { origen, documento, evento }); }
   pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
   aviso(`${o.orden} · ${etapa} · ${hora(evento)}`, r);
 }
@@ -1175,7 +1187,8 @@ function renderOrden(){
     if (siguiente >= 0) {
       const btn = document.createElement('button'); btn.type = 'button';
       btn.className = 'btn ' + (bloqueadaDeNoche(ETAPAS[siguiente]) ? '' : 'prim');
-      btn.textContent = ETAPAS[siguiente];
+      const faltan = siguiente > 0 ? pendientes(x).length : 0;
+      btn.textContent = faltan ? `Faltan ${cuenta(faltan, 'insumo')}` : ETAPAS[siguiente];
       btn.setAttribute('aria-label', `Registrar ${ETAPAS[siguiente]} de ${x.orden}`);
       btn.disabled = Date.now() < pausaHasta;
       btn.onclick = () => { if (x.orden !== ordenActual) elegirOrden(x.orden); tocarEtapa(x, siguiente); };
@@ -1210,7 +1223,8 @@ function renderOrden(){
     s.textContent = {
       hecha: lista[i] && `${hora(lista[i].fecha_hora_evento)} · toca para rehacer`,
       noaplica: 'No aplica · la MP vino consolidada',
-      siguiente: bloqueadaDeNoche(nombre) ? 'Siguiente · no se registra en turno noche' : 'Siguiente · toca para registrar la hora',
+      siguiente: bloqueadaDeNoche(nombre) ? 'Siguiente · no se registra en turno noche'
+        : o && i > 0 && pendientes(o).length ? `Faltan ${cuenta(pendientes(o).length, 'insumo')} de la OC en «MP recibida»` : 'Siguiente · toca para registrar la hora',
       faltante: `${est[i] === 'saltada' ? 'Saltada' : 'Sin dato'} · solo con Documento o Testimonio`,
       bloqueada: o ? `Primero «${ETAPAS[siguiente]}»` : 'Elige o crea una orden'
     }[tipo];
@@ -1253,17 +1267,29 @@ function renderOrden(){
 
 // ---------- Movimientos de almacén y trazabilidad ----------
 function despuesDeGuardar(texto, r){ reiniciarOrigen(); pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250); aviso(texto, r); }
+// Vuelve a abrir el menú con los insumos que faltan hasta completarlos; Cancelar deja el resto para después.
+// Lo observado toma la hora de cada material al guardarlo (el primero, la del toque); documento y testimonio usan la misma hora y documento.
+async function entradasRestantes(o, pre, primera){
+  let n = 0;
+  for (let falta = pendientes(o); falta.length; falta = pendientes(o)) {
+    const d = await pedirEntrada(o, `${o.orden} · Material que ingresa`,
+      `Faltan ${falta.length}: ${falta.map(i => i.nombre).join(', ')}. Si llegan después, toca Cancelar y regístralos con «+ Otra entrada de MP».`);
+    const evento = primera && !n ? pre.evento : pre.origen === 'observado' ? isoLocal(new Date()) : pre.evento;
+    if (!d || !nuevoRegistro(Object.assign({ tipo: 'entrada', area: 'Almacén MP' }, deOrden(o),
+      { origen: pre.origen, documento: pre.documento, fecha_hora_evento: evento }, d))) break;
+    n++; render();
+  }
+  return n;
+}
 async function otraEntrada(){
   const o = orden();
   if (!o || Date.now() < pausaHasta) return;
   if (bloqueadaDeNoche('MP recibida')) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
+  if (!pendientes(o).length) { await pedirEntrada(o); return; } // avisa por qué no hay nada que registrar
   const pre = await prepararOrigen();
   if (!pre) return;
-  const d = await pedirEntrada(o, `${o.orden} · Otra entrada de MP`, '');
-  if (!d) return;
-  const r = nuevoRegistro(Object.assign({ tipo: 'entrada', area: 'Almacén MP' }, deOrden(o),
-    { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d));
-  if (r) despuesDeGuardar(`${o.orden} · entrada de ${nombreMat(r)}: ${r.cant_recibida}`, r);
+  const n = await entradasRestantes(o, pre, true);
+  if (n) despuesDeGuardar(`${o.orden} · ${cuenta(n, 'entrada registrada', 'entradas registradas')}${pendientes(o).length ? ` · faltan ${pendientes(o).length}` : ' · insumos completos'}`);
 }
 // Momento 4 · devolución: el sobrante de una entrada entregada regresa al almacén
 async function devolucion(){

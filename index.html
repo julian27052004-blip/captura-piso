@@ -78,7 +78,7 @@ main{grid-area:main;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow
 label{display:block;font-weight:700;margin:0 0 6px}
 .campo{margin-bottom:14px}
 .campo small{display:block;color:var(--muted);font-size:15px;margin-top:4px}
-input[type=text],input[type=datetime-local],select{width:100%;min-height:56px;padding:0 14px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:18px}
+input[type=text],input[type=datetime-local],input[type=number],input[type=date],select{width:100%;min-height:56px;padding:0 14px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:18px}
 input:focus,select:focus{border-color:var(--ring)}
 .req{color:var(--danger)}
 .ayuda{color:var(--muted);font-size:16px}
@@ -171,6 +171,12 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 .merma-item:first-child{border-top:0}
 .merma-item span{display:block;color:var(--muted);font-size:14px}
 .merma-item.anulada{opacity:.5;text-decoration:line-through}
+.oc-prod{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-bottom:12px}
+.oc-prod label{font-size:15px}
+.oc-prod .btn{min-height:56px}
+@media (max-width:600px){.oc-prod{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.oc-prod .p-nombre{grid-column:1/-1}}
+.check{display:flex;align-items:center;gap:12px;min-height:48px}
+.check input{width:28px;height:28px;flex:0 0 auto}
 #dlg-campos select{width:100%;min-height:52px;padding:0 12px;border:2px solid var(--border);border-radius:12px;background:var(--card);font-size:17px}
 #dlg-campos input[type=text]{min-height:52px}
 .nuevo-item{display:flex;gap:8px;margin-top:8px}
@@ -226,10 +232,10 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
         </div>
         <div id="col-izq">
           <div class="tarjeta">
-            <label for="sel-orden">Orden de producción o lote</label>
+            <label for="sel-orden">Orden de producción (OC · producto)</label>
             <div class="fila">
               <select id="sel-orden" style="flex:1 1 240px"></select>
-              <button type="button" id="btn-nueva" class="btn" style="flex:0 0 auto">+ Nueva orden</button>
+              <button type="button" id="btn-nueva" class="btn" style="flex:0 0 auto">+ Nueva OC</button>
             </div>
             <div id="orden-resumen" class="orden-resumen"></div>
             <div id="acciones-orden" class="acciones-orden" hidden>
@@ -241,13 +247,27 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
           <form id="form-orden" class="tarjeta" novalidate hidden>
             <h2 id="form-orden-titulo">Nueva orden</h2>
-            <div class="campo"><label for="no-orden">Orden o lote <span class="req">*</span></label><input type="text" id="no-orden" autocapitalize="characters" required></div>
+            <div class="campo"><label for="no-orden">Nombre de la orden <span class="req">*</span></label><input type="text" id="no-orden" autocapitalize="characters" required></div>
             <div class="campo"><label for="no-cliente">Cliente</label><input type="text" id="no-cliente" list="dl-cliente"></div>
             <div class="campo"><label for="no-oc">OC</label><input type="text" id="no-oc" list="dl-oc" autocapitalize="characters"></div>
             <div class="campo"><label for="no-producto">Producto</label><input type="text" id="no-producto" list="dl-producto"></div>
             <div class="campo"><label for="no-linea">Línea</label><input type="text" id="no-linea" list="dl-linea" autocapitalize="characters"></div>
             <div class="fila"><button type="submit" class="btn prim">Guardar orden</button><button type="button" id="no-cancelar" class="btn">Cancelar</button></div>
             <datalist id="dl-cliente"></datalist><datalist id="dl-oc"></datalist><datalist id="dl-producto"></datalist><datalist id="dl-linea"></datalist>
+          </form>
+
+          <form id="form-oc" class="tarjeta" novalidate hidden>
+            <h2>Nueva OC</h2>
+            <p class="ayuda">Cada producto de la OC queda como una orden de producción. Si la OC ya existe, agrega solo los productos nuevos y escribe el importe total actualizado de toda la OC.</p>
+            <div class="campo"><label for="oc-oc">OC <span class="req">*</span></label><input type="text" id="oc-oc" list="dl-oc" autocapitalize="characters"></div>
+            <div class="campo"><label for="oc-cliente">Cliente <span class="req">*</span></label><input type="text" id="oc-cliente" list="dl-cliente"></div>
+            <div class="campo"><label for="oc-fecha">Fecha de la OC <span class="req">*</span></label><input type="date" id="oc-fecha"></div>
+            <div id="oc-productos"></div>
+            <button type="button" id="oc-mas" class="btn chico" style="margin-bottom:14px">+ Otro producto</button>
+            <div class="campo"><label for="oc-importe">Importe total de la venta <span class="req">*</span></label><input type="number" id="oc-importe" min="0" step="any" inputmode="decimal">
+              <small>De toda la OC, sin precios unitarios. Después solo se ve en modo Finanzas (Más).</small></div>
+            <div class="campo"><label for="oc-linea">Línea</label><input type="text" id="oc-linea" list="dl-linea" autocapitalize="characters"></div>
+            <div class="fila"><button type="submit" class="btn prim">Guardar OC</button><button type="button" id="oc-cancelar" class="btn">Cancelar</button></div>
           </form>
 
           <div id="slot-origen-orden"></div>
@@ -270,12 +290,24 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
           </div>
 
           <div id="etapas" class="etapas" aria-label="Etapas de la orden"></div>
+
+          <div id="mov-orden" class="tarjeta" style="margin-top:var(--gap)" hidden>
+            <h2>Movimientos de almacén</h2>
+            <div class="fila">
+              <button type="button" id="btn-entrada" class="btn">+ Otra entrada de MP</button>
+              <button type="button" id="btn-devolucion" class="btn">Devolución a almacén</button>
+            </div>
+            <p class="ayuda" style="margin:12px 0 0">Otra entrada: después de «MP recibida». Devolución: después de entregar a producción en «Inicio de producción». Los dos usan el origen del dato de arriba.</p>
+          </div>
         </div>
 
         <div id="col-der" class="tarjeta">
           <h2>Línea de tiempo</h2>
           <ol id="tiempo" class="tiempo"></ol>
           <p id="tiempo-total" class="ayuda" style="margin:16px 0 0"></p>
+          <h2 style="margin-top:24px">Trazabilidad</h2>
+          <p class="ayuda" style="margin:0 0 8px">Entradas de MP y empaque de esta orden con lo que se entregó a producción y lo que regresó. Toca una entrada agregada o una devolución para anularla.</p>
+          <div id="traza"></div>
         </div>
       </div>
     </section>
@@ -344,15 +376,21 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
         <p class="ayuda">Si al abrir el CSV en Excel todo queda en una sola columna, cambia el separador y vuelve a exportar.</p>
       </div>
       <div class="tarjeta">
-        <h2>Catálogos de merma</h2>
+        <h2>Catálogos</h2>
         <p class="ayuda">Quitar solo desactiva: los registros viejos conservan su texto.</p>
         <h3>Causas</h3><div id="cat-causas"></div>
         <h3 style="margin-top:16px">Equipos</h3><div id="cat-equipos"></div>
         <button type="button" id="cat-nuevo-equipo" class="btn chico" style="margin-top:8px">+ Nuevo equipo</button>
+        <h3 style="margin-top:16px">Materiales (MP y empaque)</h3><div id="cat-materiales"></div>
         <h3 style="margin-top:16px">Factores piezas-peso</h3>
         <p class="ayuda">Por producto y unidad de empaque: piezas por unidad y kg de MP por pieza según la fórmula (no el peso del envase). merma_pct solo se calcula con factor confirmado con planta.</p>
         <div id="cat-factores"></div>
         <button type="button" id="cat-nuevo-factor" class="btn chico" style="margin-top:8px">+ Nuevo factor</button>
+      </div>
+      <div class="tarjeta">
+        <h2>Finanzas</h2>
+        <label class="check"><input type="checkbox" id="m-finanzas"> Ver importes de venta</label>
+        <p class="ayuda">Cliente, producto y cantidad los ven todos. El importe total de la OC solo aparece con esta opción, y solo así sale en el CSV.</p>
       </div>
       <div class="tarjeta">
         <h2>Empezar de cero</h2>
@@ -379,7 +417,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.3.1';
+const VERSION = '0.4.0';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -390,6 +428,10 @@ const MEDICIONES = ['Pesado', 'Contado', 'Estimado'];
 const DESTINOS_MERMA = ['Se tira', 'Reproceso', 'Retenido Calidad', 'Regresa a almacén'];
 const EQUIPOS_INICIALES = ['Selladora de tapa', 'Codificador', 'Torres de agua fría', 'Envasadora de sobres'];
 const ESTADOS_FACTOR = ['Por confirmar', 'Confirmado con planta'];
+const TIPOS_ENTRADA = ['Compra', 'Material del cliente'];
+// Quién hace cada movimiento: va en la columna area del CSV
+const AREAS = { 'MP recibida': 'Almacén MP', 'MP liberada': 'Calidad', 'Explosión de materiales': 'Producción', 'Inicio de producción': 'Almacén MP',
+  'Fin de producción': 'Producción', 'PT listo': 'Almacén PT', 'Salida': 'Almacén PT' };
 // Formato fijo del CSV para todas las fases; las columnas sin dato salen vacías. Las nuevas van al final para no mover las anteriores.
 const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo','dispositivo','sesion_id','origen','anulado',
   'orden','cliente','oc','producto','area','etapa','equipo','causa','inicio','llega_mtto','fin','minutos','min_respuesta','min_reparacion',
@@ -397,10 +439,12 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'a_tiempo','completo','otif','base_otif','version_app','nota',
   'turno','documento','procedencia','consolidada','cant_recibida','cant_utilizada','tarimas_pt','tarimas_salida','destino',
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
-  'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde'];
+  'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde',
+  'importe_total','tipo_entrada','material_nombre','lote_proveedor','entrada_ref','cant_requerida','cant_a_produccion','cant_devuelta',
+  'lote','cant_fabricada','observaciones'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
-  catalogos:'zs_cap_catalogos' };
+  catalogos:'zs_cap_catalogos', finanzas:'zs_cap_finanzas' };
 
 const $ = id => document.getElementById(id);
 
@@ -569,6 +613,8 @@ let ordenActual = leer(K.ordenActual, '');
 let exportados = new Set(leer(K.exportados, []));
 // Catálogos de merma: quitar solo desactiva (activo: false), para que los registros viejos conserven su texto.
 let catalogos = leer(K.catalogos, null) || { causas: [], equipos: EQUIPOS_INICIALES.map(nombre => ({ nombre, activo: true })), factores: [] };
+catalogos.materiales = catalogos.materiales || []; // 0.4.0: MP y empaque de las entradas
+let finanzas = leer(K.finanzas, false);       // muestra y exporta los importes de venta
 let vista = 'orden';
 
 // ---------- Fechas ----------
@@ -581,11 +627,14 @@ const slug = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().repl
 
 // ---------- Registros ----------
 function nuevoId(){ return `${slug(usuario.dispositivo)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`; }
-function nuevoRegistro(campos){
+function armarRegistro(campos){
   const ahora = isoLocal(new Date());
-  const r = Object.assign({ id: nuevoId(), tipo: '', fecha_hora_evento: ahora, fecha_hora_captura: ahora,
+  return Object.assign({ id: nuevoId(), tipo: '', fecha_hora_evento: ahora, fecha_hora_captura: ahora,
     capturo: usuario.nombre, dispositivo: usuario.dispositivo, sesion_id: sesion ? sesion.id : '', turno: sesion && sesion.turno || '',
     origen: 'observado', anulado: 'no', version_app: VERSION }, campos);
+}
+function nuevoRegistro(campos){
+  const r = armarRegistro(campos);
   registros.push(r);
   if (!guardar(K.registros, registros)) { registros.pop(); return null; }
   return r;
@@ -599,6 +648,12 @@ function actualizar(r, cambios){
 }
 function anular(r){
   return actualizar(r, { anulado: 'sí', nota: (r.nota ? r.nota + ' | ' : '') + `anulado por ${usuario.nombre} ${isoLocal(new Date())}` });
+}
+// Anula un registro junto con los renglones que cuelgan de él (receta o entregas de una etapa)
+function anularConHijos(r){
+  const ahora = isoLocal(new Date());
+  return guardarTodo(() => registros.filter(x => x.anulado === 'no' && (x.id === r.id || x.etapa_ref === r.id))
+    .forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `anulado por ${usuario.nombre} ${ahora}`; }));
 }
 
 // Última etapa vigente (no anulada) de cada paso de una orden
@@ -668,6 +723,24 @@ function renderBarra(){
 
 // ---------- Orden ----------
 const orden = () => ordenes.find(o => o.orden === ordenActual && !o.anulada) || null;
+const claveOrden = (oc, producto) => `${oc} · ${producto}`; // cada producto de una OC es una orden
+const deOrden = o => ({ orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '' });
+const delTipo = (tipo, orden) => registros.filter(r => r.tipo === tipo && r.anulado === 'no' && r.orden === orden);
+const hijosDe = r => registros.filter(x => x.etapa_ref === r.id && x.anulado === 'no');
+const ventaDe = oc => registros.filter(r => r.tipo === 'venta' && r.anulado === 'no' && oc && r.oc === oc).pop() || null;
+// Entradas de MP de una orden: la de la etapa «MP recibida» más las que se agregan después
+const entradasDe = orden => registros.filter(r => r.anulado === 'no' && r.orden === orden && (r.tipo === 'entrada' || (r.tipo === 'etapa' && r.etapa === 'MP recibida')))
+  .sort((a, b) => a.fecha_hora_evento.localeCompare(b.fecha_hora_evento));
+const nombreMat = r => `${r.material_nombre || r.material || 'MP'} (${r.unidad || 'sin unidad'})`;
+const textoEntrada = r => `${nombreMat(r)} · ${r.tipo_entrada || 'entrada'} · llegó ${r.cant_recibida ?? '?'}${r.lote_proveedor ? ` · lote prov. ${r.lote_proveedor}` : ''} · ${hora(r.fecha_hora_evento)}`;
+const suma = (xs, k) => redondo(xs.reduce((t, r) => t + (Number(r[k]) || 0), 0));
+const recetaDe = orden => delTipo('receta', orden);
+// Receta de la última orden del mismo producto, para proponerla
+function recetaPrevia(o){
+  const otras = registros.filter(r => r.tipo === 'receta' && r.anulado === 'no' && r.orden !== o.orden && o.producto && normal(r.producto || '') === normal(o.producto));
+  const ultima = otras.length && otras[otras.length - 1].orden;
+  return otras.filter(r => r.orden === ultima);
+}
 function valoresUsados(campo){ return [...new Set(ordenes.map(o => o[campo]).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')); }
 function llenarDatalist(id, campo){ $(id).replaceChildren(...valoresUsados(campo).map(v => { const o = document.createElement('option'); o.value = v; return o; })); }
 function elegirOrden(v){ ordenActual = v; guardar(K.ordenActual, v); render(); }
@@ -676,20 +749,23 @@ $('sel-orden').onchange = $('sel-orden-m').onchange = e => elegirOrden(e.target.
 let editando = null; // orden que se está editando; null = orden nueva
 function abrirFormOrden(o){
   editando = o ? o.orden : null;
+  $('form-oc').hidden = true;
   $('form-orden').reset(); $('form-orden').hidden = false;
   $('form-orden-titulo').textContent = o ? `Editar orden ${o.orden}` : 'Nueva orden';
   if (o) { $('no-orden').value = o.orden; $('no-cliente').value = o.cliente || ''; $('no-oc').value = o.oc || ''; $('no-producto').value = o.producto || ''; $('no-linea').value = o.linea || ''; }
   llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
   $('no-orden').focus();
 }
-$('btn-nueva').onclick = () => abrirFormOrden(null);
+$('btn-nueva').onclick = () => abrirFormOC();
 $('btn-editar').onclick = () => abrirFormOrden(orden());
 $('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = null; };
 $('form-orden').onsubmit = async e => {
   e.preventDefault();
   const v = id => $(id).value.trim();
   const datos = { orden: v('no-orden'), cliente: v('no-cliente'), oc: v('no-oc'), producto: v('no-producto'), linea: v('no-linea') };
-  if (!datos.orden) { await avisar('Escribe la orden o el lote.', 'Falta la orden'); $('no-orden').focus(); return; }
+  if (!datos.orden) { await avisar('Escribe el nombre de la orden.', 'Falta la orden'); $('no-orden').focus(); return; }
+  const o0 = editando && orden(); // si el nombre era «OC · producto» y no lo tocaste, sigue a la OC y al producto
+  if (o0 && o0.orden === claveOrden(o0.oc, o0.producto) && datos.orden === o0.orden && datos.oc && datos.producto) datos.orden = claveOrden(datos.oc, datos.producto);
   const existe = ordenes.find(o => !o.anulada && o.orden !== editando && o.orden.toLowerCase() === datos.orden.toLowerCase());
   if (existe && editando) { await avisar(`Ya hay otra orden "${existe.orden}". Usa otro nombre.`, 'Orden repetida'); return; }
   if (existe) { await avisar(`La orden "${existe.orden}" ya existe. Se seleccionó para que no quede duplicada.`, 'Orden repetida'); $('form-orden').hidden = true; elegirOrden(existe.orden); return; }
@@ -710,6 +786,55 @@ $('form-orden').onsubmit = async e => {
   }
   $('form-orden').hidden = true; editando = null;
   elegirOrden(datos.orden);
+};
+
+// Momento 1 · Ventas: la OC con sus productos; cada producto queda como una orden. El importe es de toda la OC.
+function filaProducto(){
+  const n = $('oc-productos').children.length + 1;
+  const f = document.createElement('div'); f.className = 'oc-prod';
+  f.innerHTML = `<div class="p-nombre"><label for="p-prod-${n}">Producto ${n} <span class="req">*</span></label><input type="text" id="p-prod-${n}" class="p-producto" list="dl-producto"></div>
+    <div><label for="p-cant-${n}">Cantidad <span class="req">*</span></label><input type="number" id="p-cant-${n}" class="p-cant" min="0" step="any" inputmode="decimal"></div>
+    <div><label for="p-uni-${n}">Unidad <span class="req">*</span></label><select id="p-uni-${n}" class="p-unidad"><option value="">Elige…</option>${UNIDADES.map(u => `<option>${u}</option>`).join('')}</select></div>
+    <button type="button" class="btn chico p-quitar" aria-label="Quitar producto ${n}">Quitar</button>`;
+  f.querySelector('.p-quitar').onclick = () => { if ($('oc-productos').children.length > 1) f.remove(); };
+  $('oc-productos').append(f);
+  return f;
+}
+function abrirFormOC(){
+  $('form-orden').hidden = true; editando = null;
+  $('form-oc').reset(); $('form-oc').hidden = false;
+  $('oc-productos').replaceChildren(); filaProducto();
+  $('oc-fecha').value = hoyStr();
+  llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
+  $('oc-oc').focus();
+}
+$('oc-mas').onclick = () => filaProducto().querySelector('input').focus();
+$('oc-cancelar').onclick = () => { $('form-oc').hidden = true; };
+$('form-oc').onsubmit = async e => {
+  e.preventDefault();
+  const v = id => $(id).value.trim();
+  const oc = v('oc-oc'), cliente = v('oc-cliente'), fecha_oc = v('oc-fecha'), linea = v('oc-linea'), importe = Number($('oc-importe').value);
+  const prods = [...$('oc-productos').children].map(f => ({ producto: f.querySelector('.p-producto').value.trim(),
+    texto: f.querySelector('.p-cant').value, cant: Number(f.querySelector('.p-cant').value), unidad: f.querySelector('.p-unidad').value }));
+  const falta = !oc ? 'el número de OC' : !cliente ? 'el cliente' : !fecha_oc ? 'la fecha de la OC'
+    : prods.some(p => !p.producto || p.texto === '' || !(p.cant > 0) || !p.unidad) ? 'producto, cantidad (mayor que 0) y unidad en cada renglón'
+    : !(v('oc-importe') !== '' && importe > 0) ? 'el importe total de la venta (mayor que 0)' : '';
+  if (falta) { await avisar(`Falta ${falta}.`, 'Faltan datos'); return; }
+  if (new Set(prods.map(p => normal(p.producto))).size < prods.length) { await avisar('Hay un producto repetido. Junta sus cantidades en un solo renglón.', 'Producto repetido'); return; }
+  const ya = prods.filter(p => ordenes.some(o => !o.anulada && o.orden.toLowerCase() === claveOrden(oc, p.producto).toLowerCase()));
+  if (ya.length) { await avisar(`Esa OC (${oc}) ya tiene la orden de ${lista3(ya.map(p => p.producto))}. Quita ese renglón; para corregirla usa Editar orden.`, 'Orden repetida'); return; }
+  const ahora = isoLocal(new Date()), previa = ventaDe(oc);
+  const nuevas = prods.map(p => ({ orden: claveOrden(oc, p.producto), cliente, oc, producto: p.producto, linea, cant_pedida: p.cant, unidad_pedida: p.unidad, fecha_oc, creada: ahora }));
+  const filas = [...nuevas.map(n => armarRegistro(Object.assign({ tipo: 'oc', area: 'Ventas' }, deOrden(n),
+      { cant_pedida: n.cant_pedida, unidad: n.unidad_pedida, fecha_oc, origen: 'documento', documento: oc }))),
+    armarRegistro({ tipo: 'venta', area: 'Ventas', oc, cliente, importe_total: importe, fecha_oc, origen: 'documento', documento: oc })];
+  if (!guardarTodo(() => {
+    ordenes.push(...nuevas); registros.push(...filas);
+    if (previa) { previa.anulado = 'sí'; previa.nota = (previa.nota ? previa.nota + ' | ' : '') + `importe reemplazado por ${usuario.nombre} ${ahora}`; }
+  })) return;
+  $('form-oc').hidden = true;
+  elegirOrden(nuevas[0].orden);
+  aviso(`${oc}: ${cuenta(nuevas.length, 'orden creada', 'órdenes creadas')}.`);
 };
 
 $('btn-anular-orden').onclick = async () => {
@@ -761,6 +886,19 @@ function estadoOrden(o){
 const cuenta = (n, uno, varios = uno + 's') => `${n} ${n === 1 ? uno : varios}`;
 const lista3 = xs => xs.map(x => `«${x}»`).join(', ');
 const bloqueadaDeNoche = etapa => sesion && sesion.turno === 'noche' && !NOCHE.includes(etapa);
+const revisar = async texto => await preguntar('Revisa la cantidad', texto, [{ v: null, t: 'Corregir', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) === 'si';
+const sinMateriales = async (titulo, texto) => await preguntar(titulo, texto, [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Registrar solo la hora' }]) === 'si' ? {} : null;
+// Momento 2 · Almacén MP: compra o del cliente, material, unidad, cantidad. El lote del proveedor liga la MP con el lote de PT.
+const camposEntrada = () => [
+  { k: 'tipo_entrada', label: '¿Compra o material del cliente?', tipo: 'opc', opciones: TIPOS_ENTRADA },
+  { k: 'material', label: 'Tipo de material', tipo: 'opc', opciones: ['MP', 'Empaque'] },
+  { k: 'material_nombre', label: 'Material que ingresa', tipo: 'lista', opciones: activos('materiales'), todas: catalogos.materiales.map(x => x.nombre),
+    agregar: v => agregarCatalogo('materiales', v), textoNuevo: '+ Nuevo material' },
+  { k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES },
+  { k: 'cant_recibida', label: 'Cantidad', tipo: 'num' },
+  { k: 'lote_proveedor', label: 'Lote del proveedor', tipo: 'texto', opcional: true },
+  { k: 'procedencia', label: 'Procedencia', tipo: 'opc', opciones: LUGARES },
+  { k: 'consolidada', label: '¿Ya viene consolidada?', tipo: 'opc', opciones: ['Sí', 'No'] }];
 let pausaHasta = 0; // anti doble toque
 
 async function tocarEtapa(o, i){
@@ -794,24 +932,63 @@ async function tocarEtapa(o, i){
 // Datos que pide cada etapa; regresa {} si no pide nada y null si se cancela.
 async function datosEtapa(o, etapa, lista){
   const titulo = `${o.orden} · ${etapa}`;
-  const revisar = async texto => await preguntar('Revisa la cantidad', texto, [{ v: null, t: 'Corregir', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) === 'si';
   if (etapa === 'MP recibida') {
-    const d = await pedirDatos(titulo, '', [
-      { k: 'cant_recibida', label: 'Cantidad recibida', tipo: 'num' },
-      { k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES },
-      { k: 'procedencia', label: 'Procedencia de la MP', tipo: 'opc', opciones: LUGARES },
-      { k: 'consolidada', label: '¿Ya viene consolidada?', tipo: 'opc', opciones: ['Sí', 'No'] }]);
+    const d = await pedirDatos(titulo, 'Primera entrada de MP de esta orden. Si llegan más materiales, usa «+ Otra entrada de MP».', camposEntrada());
     return d && Object.assign(d, { consolidada: d.consolidada === 'Sí' ? 'sí' : 'no' });
   }
-  if (etapa === 'Inicio de producción') {
-    const mp = lista[0] && lista[0].cant_recibida ? lista[0] : null;
-    const campos = [{ k: 'cant_utilizada', label: mp ? `Cantidad utilizada (${mp.unidad})` : 'Cantidad utilizada', tipo: 'num' }];
-    if (!mp) campos.push({ k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES });
+  if (etapa === 'Explosión de materiales') {
+    // Receta: cuánto pide esta producción de cada material, al lado de lo que llegó. Propone la de la última orden del mismo producto.
+    const mats = new Map(), previa = recetaPrevia(o);
+    for (const e of entradasDe(o.orden)) {
+      const m = mats.get(nombreMat(e)) || { material: e.material, material_nombre: e.material_nombre, unidad: e.unidad, llego: 0 };
+      m.llego += Number(e.cant_recibida) || 0; mats.set(nombreMat(e), m);
+    }
+    for (const x of previa) if (!mats.has(nombreMat(x))) mats.set(nombreMat(x), { material: x.material, material_nombre: x.material_nombre, unidad: x.unidad, llego: 0 });
+    const ms = [...mats.values()];
+    if (!ms.length) return sinMateriales(titulo, 'Esta orden no tiene entradas de MP ni receta anterior del producto, así que no hay materiales que explotar.');
+    ms.forEach(m => { const x = previa.find(y => nombreMat(y) === nombreMat(m)); m.req = x ? x.cant_requerida : ''; });
     for (;;) {
-      const d = await pedirDatos(titulo, mp ? `Se recibieron ${mp.cant_recibida} ${mp.unidad}.` : 'Esta orden no tiene cantidad recibida registrada.', campos);
+      const d = await pedirDatos(titulo, `Cantidad de cada material que pide esta producción${o.cant_pedida ? ` (${o.cant_pedida} ${o.unidad_pedida || ''} de ${o.producto})` : ''}. Escribe 0 si no se usa.`,
+        ms.map((m, n) => ({ k: 'm' + n, label: `${nombreMat(m)} · llegó ${redondo(m.llego)}`, tipo: 'num', cero: true, valor: m.req })));
       if (!d) return null;
-      if (mp) d.unidad = mp.unidad; // misma unidad que la recibida: no se mezclan unidades
-      if (!mp || d.cant_utilizada <= mp.cant_recibida || await revisar(`Utilizada (${d.cant_utilizada} ${mp.unidad}) es mayor que la recibida (${mp.cant_recibida} ${mp.unidad}).`)) return d;
+      ms.forEach((m, n) => { m.req = d['m' + n]; });
+      if (!ms.some(m => m.req > 0)) { await avisar('Escribe la cantidad de al menos un material.', 'Receta vacía'); continue; }
+      const faltan = ms.filter(m => m.req > m.llego);
+      if (faltan.length && !(await revisar(`Pide más de lo que llegó: ${faltan.map(m => `${nombreMat(m)} pide ${m.req} y llegó ${redondo(m.llego)}`).join('; ')}.`))) continue;
+      return { hijos: ms.filter(m => m.req > 0).map(m => ({ tipo: 'receta', material: m.material, material_nombre: m.material_nombre, unidad: m.unidad,
+        cant_requerida: m.req, cant_recibida: redondo(m.llego) })) };
+    }
+  }
+  if (etapa === 'Inicio de producción') {
+    // Momento 3 · entrega a producción: de qué entrada sale cada MP y cada empaque. Precarga la receta si el material llegó en una sola entrada.
+    const es = entradasDe(o.orden).sort((a, b) => (a.material === 'Empaque') - (b.material === 'Empaque'));
+    if (!es.length) return sinMateriales(titulo, 'Esta orden no tiene entradas de MP registradas, así que no hay de dónde entregar.');
+    const receta = recetaDe(o.orden);
+    const vals = es.map(e => { const x = receta.find(y => nombreMat(y) === nombreMat(e)); return x && es.filter(y => nombreMat(y) === nombreMat(e)).length === 1 ? x.cant_requerida : ''; });
+    for (;;) {
+      const d = await pedirDatos(titulo, 'Cuánto se entrega a producción de cada entrada (0 si de esa no sale nada). Primero MP y después empaque.' +
+        (receta.length ? '' : '\nEsta orden no tiene receta: revisa «Explosión de materiales».'),
+        es.map((e, n) => ({ k: 'e' + n, label: `${e.material === 'Empaque' ? 'Empaque' : 'MP'} · ${textoEntrada(e)}`, tipo: 'num', cero: true, valor: vals[n] })));
+      if (!d) return null;
+      es.forEach((e, n) => { vals[n] = d['e' + n]; });
+      if (!vals.some(x => x > 0)) { await avisar('Escribe cuánto se entrega de al menos una entrada.', 'Entrega vacía'); continue; }
+      const pasan = es.filter((e, n) => vals[n] > (Number(e.cant_recibida) || 0));
+      if (pasan.length && !(await revisar(`Se entrega más de lo que llegó en: ${pasan.map(nombreMat).join(', ')}.`))) continue;
+      return { hijos: es.map((e, n) => vals[n] > 0 && { tipo: 'entrega', entrada_ref: e.id, material: e.material, material_nombre: e.material_nombre, unidad: e.unidad,
+        tipo_entrada: e.tipo_entrada, lote_proveedor: e.lote_proveedor, cant_a_produccion: vals[n] }).filter(Boolean) };
+    }
+  }
+  if (etapa === 'Fin de producción') {
+    // Momento 4 · registrar producción: el lote de fabricación lo pone producción
+    for (;;) {
+      const d = await pedirDatos(titulo, 'Registrar producción.', [
+        { k: 'lote', label: 'Número de lote', tipo: 'texto' },
+        { k: 'cant_fabricada', label: 'Cantidad fabricada', tipo: 'num' },
+        { k: 'unidad', label: 'Unidad', tipo: 'opc', opciones: UNIDADES, valor: o.unidad_pedida },
+        { k: 'observaciones', label: 'Observaciones', tipo: 'texto', opcional: true }]);
+      if (!d) return null;
+      const otro = registros.find(r => r.tipo === 'etapa' && r.etapa === etapa && r.anulado === 'no' && r.orden !== o.orden && normal(r.lote || '') === normal(d.lote));
+      if (!otro || await revisar(`El lote ${d.lote} ya está en la orden ${otro.orden}.`)) return d;
     }
   }
   if (etapa === 'PT listo') return pedirDatos(titulo, '', [{ k: 'tarimas_pt', label: 'Tarimas que pasan a PT desde Fin de producción', tipo: 'entero' }]);
@@ -861,10 +1038,11 @@ async function registrarEtapa(o, i, lista){
   const extra = await datosEtapa(o, etapa, lista); // la hora ya quedó fijada en el toque
   if (!extra) return;
 
-  const r = nuevoRegistro(Object.assign({ tipo: 'etapa', etapa, orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto,
-    linea: o.linea || '', origen, documento, fecha_hora_evento: evento }, extra));
-  if (!r) return;
-  if ((o.saltadas || []).includes(etapa)) { o.saltadas = o.saltadas.filter(e => e !== etapa); guardar(K.ordenes, ordenes); }
+  const { hijos = [], ...datos } = extra;
+  const base = Object.assign(deOrden(o), { origen, documento, fecha_hora_evento: evento, area: AREAS[etapa] });
+  const r = armarRegistro(Object.assign({ tipo: 'etapa', etapa }, base, datos));
+  const filas = hijos.map(h => armarRegistro(Object.assign({ etapa, etapa_ref: r.id }, base, h)));
+  if (!guardarTodo(() => { registros.push(r, ...filas); if ((o.saltadas || []).includes(etapa)) o.saltadas = o.saltadas.filter(e => e !== etapa); })) return;
   reiniciarOrigen();
   pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
   aviso(`${o.orden} · ${etapa} · ${hora(evento)}`, r);
@@ -877,11 +1055,14 @@ async function rehacerDesde(o, i, lista){
   if (await preguntar(`${o.orden} · «${ETAPAS[i]}»`,
     `Registrada a las ${hora(r.fecha_hora_evento)} (${origen}) por ${r.capturo}.\n\n` +
     (despues.length ? `Rehacer anula esta etapa y las siguientes: ${lista3(despues)}.` : 'Rehacer anula esta etapa.') +
-    ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.',
+    ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.' +
+    (afectadas.some(x => x.etapa === 'Inicio de producción') ? '\nTambién se anulan la entrega a producción y las devoluciones de esta orden.' : ''),
     [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Rehacer desde aquí', c: 'borde-peligro' }]) !== 'si') return;
   const ahora = isoLocal(new Date());
   if (!guardarTodo(() => {
-    afectadas.forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; });
+    const ids = new Set(afectadas.map(x => x.id)), conInicio = afectadas.some(x => x.etapa === 'Inicio de producción');
+    registros.filter(x => x.anulado === 'no' && (ids.has(x.id) || ids.has(x.etapa_ref) || (conInicio && x.tipo === 'devolucion' && x.orden === o.orden)))
+      .forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; });
     o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < i);
   })) return;
   render(); aviso(`${o.orden}: registra de nuevo «${ETAPAS[i]}».`);
@@ -896,8 +1077,10 @@ function etiquetaOrigen(origen){
 }
 function resumenDatos(r){
   return {
-    'MP recibida': r.cant_recibida && `${r.cant_recibida} ${r.unidad} · de ${r.procedencia} · consolidada: ${r.consolidada}`,
-    'Inicio de producción': r.cant_utilizada && `${r.cant_utilizada} ${r.unidad} utilizados`,
+    'MP recibida': r.cant_recibida && `${textoEntrada(r)} · de ${r.procedencia} · consolidada: ${r.consolidada}`,
+    'Explosión de materiales': hijosDe(r).length && `Receta: ${hijosDe(r).map(x => `${nombreMat(x)} ${x.cant_requerida}`).join(', ')}`,
+    'Inicio de producción': r.cant_utilizada ? `${r.cant_utilizada} ${r.unidad} utilizados` : hijosDe(r).length && `Entregado: ${hijosDe(r).map(x => `${nombreMat(x)} ${x.cant_a_produccion}`).join(', ')}`,
+    'Fin de producción': r.lote && `Lote ${r.lote} · ${r.cant_fabricada} ${r.unidad}${r.observaciones ? ` · ${r.observaciones}` : ''}`,
     'PT listo': r.tarimas_pt && `${cuenta(r.tarimas_pt, 'tarima')} a PT`,
     'Salida': r.tarimas_salida && `${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}`
   }[r.etapa] || '';
@@ -909,10 +1092,15 @@ function llenarSelectOrdenes(sel){
   const activas = ordenes.filter(o => !o.anulada);
   for (const o of activas) (etapasDe(o.orden)[ETAPAS.length - 1] ? terminadas : vigentes).push(o);
   const opcion = (v, t) => { const op = document.createElement('option'); op.value = v; op.textContent = t; return op; };
-  const items = [opcion('', activas.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una')];
-  const grupo = (titulo, lista) => { if (!lista.length) return; const g = document.createElement('optgroup'); g.label = titulo;
-    lista.slice().reverse().forEach(o => g.append(opcion(o.orden, [o.orden, o.cliente, o.producto].filter(Boolean).join(' · ')))); items.push(g); };
-  grupo('En proceso', vigentes); grupo('Con salida registrada', terminadas);
+  const items = [opcion('', activas.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una OC')];
+  // Agrupadas por OC: al buscar la OC quedan a la vista solo sus productos
+  const grupos = new Map();
+  for (const o of activas.slice().reverse()) { const k = o.oc || 'Sin OC'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(o); }
+  for (const [oc, lista] of grupos) {
+    const g = document.createElement('optgroup'); g.label = [oc, lista[0].cliente].filter(Boolean).join(' · ');
+    lista.forEach(o => g.append(opcion(o.orden, (o.orden === claveOrden(o.oc, o.producto) ? o.producto : o.orden) + (terminadas.includes(o) ? ' · con salida' : ''))));
+    items.push(g);
+  }
   sel.replaceChildren(...items);
   if (!orden()) ordenActual = '';
   sel.value = ordenActual;
@@ -945,10 +1133,16 @@ function renderOrden(){
   }));
 
   const o = orden();
-  $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
+  const venta = o && finanzas && ventaDe(o.oc);
+  $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`,
+    o.cant_pedida && `Cantidad: ${o.cant_pedida} ${o.unidad_pedida || ''}`.trim(), venta && `Importe de la OC: $${venta.importe_total.toLocaleString('es-MX')}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
 
   $('acciones-orden').hidden = !o;
   const { lista, est, ultima, siguiente } = o ? estadoOrden(o) : { lista: ETAPAS.map(() => null), est: ETAPAS.map(() => null), ultima: -1, siguiente: -1 };
+  $('mov-orden').hidden = !o;
+  $('btn-entrada').disabled = !lista[0];
+  $('btn-devolucion').disabled = !o || !delTipo('entrega', o.orden).length;
+  renderTraza(o);
   $('etapas').classList.toggle('pausa', Date.now() < pausaHasta);
   $('etapas').replaceChildren(...ETAPAS.map((nombre, i) => {
     const b = document.createElement('button'); b.type = 'button';
@@ -1003,6 +1197,85 @@ function renderOrden(){
   $('tiempo-total').textContent = hechas.length >= 2
     ? `Total: ${minutosEntre(hechas[0].fecha_hora_evento, hechas[hechas.length - 1].fecha_hora_evento)} min de ${ETAPAS[lista.indexOf(hechas[0])]} a ${ETAPAS[lista.lastIndexOf(hechas[hechas.length - 1])]}`
     : '';
+}
+
+// ---------- Movimientos de almacén y trazabilidad ----------
+function despuesDeGuardar(texto, r){ reiniciarOrigen(); pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250); aviso(texto, r); }
+async function otraEntrada(){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  if (bloqueadaDeNoche('MP recibida')) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const d = await pedirDatos(`${o.orden} · Otra entrada de MP`, '', camposEntrada());
+  if (!d) return;
+  const r = nuevoRegistro(Object.assign({ tipo: 'entrada', area: 'Almacén MP' }, deOrden(o),
+    { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d, { consolidada: d.consolidada === 'Sí' ? 'sí' : 'no' }));
+  if (r) despuesDeGuardar(`${o.orden} · entrada de ${nombreMat(r)}: ${r.cant_recibida}`, r);
+}
+// Momento 4 · devolución: el sobrante de una entrada entregada regresa al almacén
+async function devolucion(){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden);
+  const de = (xs, e) => xs.filter(x => x.entrada_ref === e.id);
+  const es = entradasDe(o.orden).filter(e => de(entregas, e).length);
+  if (!es.length) { await avisar('Todavía no se entrega material a producción en esta orden.', 'Sin entregas'); return; }
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const enProd = e => redondo(suma(de(entregas, e), 'cant_a_produccion') - suma(de(devs, e), 'cant_devuelta'));
+  const etiqueta = e => `${e.material === 'Empaque' ? 'Empaque' : 'MP'} · ${nombreMat(e)}${e.lote_proveedor ? ` · lote ${e.lote_proveedor}` : ''} · en producción ${enProd(e)} · ${hora(e.fecha_hora_evento)}`;
+  const campos = [{ k: 'cual', label: '¿Qué regresa?', tipo: 'opc', opciones: es.map(etiqueta), valor: es.length === 1 ? etiqueta(es[0]) : '' },
+    { k: 'cant_devuelta', label: 'Cantidad devuelta', tipo: 'num' }];
+  for (;;) {
+    const d = await pedirDatos(`${o.orden} · Devolución a almacén`, 'Material sobrante que regresa al almacén.', campos);
+    if (!d) return;
+    const e = es.find(x => etiqueta(x) === d.cual);
+    campos[0].valor = d.cual; campos[1].valor = d.cant_devuelta;
+    if (d.cant_devuelta > enProd(e) && !(await revisar(`Regresan ${d.cant_devuelta} ${e.unidad}, pero en producción quedan ${enProd(e)}.`))) continue;
+    const r = nuevoRegistro(Object.assign({ tipo: 'devolucion', area: 'Producción' }, deOrden(o),
+      { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento, entrada_ref: e.id, material: e.material, material_nombre: e.material_nombre,
+        unidad: e.unidad, tipo_entrada: e.tipo_entrada, lote_proveedor: e.lote_proveedor, cant_devuelta: d.cant_devuelta }));
+    if (r) despuesDeGuardar(`${o.orden} · regresan ${d.cant_devuelta} de ${nombreMat(e)}`, r);
+    return;
+  }
+}
+$('btn-entrada').onclick = otraEntrada;
+$('btn-devolucion').onclick = devolucion;
+
+async function tocarEntrada(e){
+  if (e.tipo === 'etapa') { await avisar('Es la entrada de «MP recibida». Para cambiarla, toca esa etapa y rehazla.', 'Entrada de la etapa'); return; }
+  if (delTipo('entrega', e.orden).some(x => x.entrada_ref === e.id)) {
+    await avisar('Ya se entregó material de esta entrada a producción. Primero rehaz «Inicio de producción».', 'Entrada en uso'); return;
+  }
+  if (await preguntar('Anular esta entrada', `${textoEntrada(e)}\n\nQueda en el CSV como anulada, para que quede rastro.`,
+    [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Anular', c: 'borde-peligro' }]) === 'si' && anular(e)) render();
+}
+async function tocarDevolucion(d){
+  if (await preguntar('Anular esta devolución', `${nombreMat(d)}: ${d.cant_devuelta} · ${hora(d.fecha_hora_evento)}\n\nQueda en el CSV como anulada, para que quede rastro.`,
+    [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Anular', c: 'borde-peligro' }]) === 'si' && anular(d)) render();
+}
+// Lote de PT ← entradas (lote del proveedor) con lo requerido, entregado y devuelto: lo que se enseña en una auditoría
+function renderTraza(o){
+  if (!o) { $('traza').replaceChildren(); return; }
+  const fin = etapasDe(o.orden)[ETAPAS.indexOf('Fin de producción')];
+  const receta = recetaDe(o.orden), entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden), es = entradasDe(o.orden);
+  const item = (titulo, detalle, fn) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'merma-item';
+    const t = document.createElement('b'); t.textContent = titulo;
+    const s = document.createElement('span'); s.textContent = detalle;
+    b.append(t, s); b.onclick = fn; return b;
+  };
+  const p = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
+  $('traza').replaceChildren(
+    p(fin && fin.lote ? `Lote de PT: ${fin.lote} · ${fin.cant_fabricada} ${fin.unidad}` : 'Lote de PT: pendiente (se escribe en «Fin de producción»).'),
+    ...(es.length ? es.map(e => {
+      const req = receta.find(x => nombreMat(x) === nombreMat(e));
+      return item(textoEntrada(e), [`Receta del material: ${req ? req.cant_requerida : '—'}`,
+        `Entregado: ${suma(entregas.filter(x => x.entrada_ref === e.id), 'cant_a_produccion')}`,
+        `Devuelto: ${suma(devs.filter(x => x.entrada_ref === e.id), 'cant_devuelta')}`].join(' · '), () => tocarEntrada(e));
+    }) : [p('Sin entradas de MP.')]),
+    ...devs.map(d => item(`Devolución · ${nombreMat(d)}: ${d.cant_devuelta}`, `${hora(d.fecha_hora_evento)} · ${d.lote_proveedor ? `lote prov. ${d.lote_proveedor} · ` : ''}toca para anular`, () => tocarDevolucion(d))));
 }
 
 // ---------- Merma ----------
@@ -1079,11 +1352,13 @@ async function cerrarOrden(){
   const pre = await prepararOrigen();
   if (!pre) return;
   const fs = factoresDe(o.producto), mp = etapasDe(o.orden)[0];
+  const kgMP = tipo => delTipo(tipo, o.orden).filter(x => x.material === 'MP' && x.unidad === 'Kg');
+  const entregadoKg = suma(kgMP('entrega'), 'cant_a_produccion');
   const campos = [
-    { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: mp && mp.unidad === 'Kg' ? mp.cant_recibida : '' },
+    { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: entregadoKg || (mp && mp.unidad === 'Kg' ? mp.cant_recibida : '') },
     { k: 'pt_conforme_u', label: 'PT conforme (unidades de empaque)', tipo: 'num', cero: true },
     ...(fs.length ? [{ k: 'unidad_empaque', label: 'Unidad de empaque', tipo: 'opc', opciones: fs.map(f => f.unidad), valor: fs.length === 1 ? fs[0].unidad : '' }] : []),
-    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true },
+    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: entregadoKg ? suma(kgMP('devolucion'), 'cant_devuelta') : '' },
     { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true },
     { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true }];
   const aviso0 = fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`;
@@ -1151,7 +1426,8 @@ function filaCatalogo(titulo, detalle, activo, botones){
 const alternar = x => { x.activo = !x.activo; if (!guardar(K.catalogos, catalogos)) x.activo = !x.activo; renderMas(); };
 function renderCatalogos(){
   const vacio = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
-  for (const [lista, cont, vacia] of [['causas', 'cat-causas', 'Todavía no hay causas: se agregan desde la ventana de merma.'], ['equipos', 'cat-equipos', 'Sin equipos.']])
+  for (const [lista, cont, vacia] of [['causas', 'cat-causas', 'Todavía no hay causas: se agregan desde la ventana de merma.'], ['equipos', 'cat-equipos', 'Sin equipos.'],
+    ['materiales', 'cat-materiales', 'Todavía no hay materiales: se agregan al registrar una entrada de MP.']])
     $(cont).replaceChildren(...(catalogos[lista].length ? catalogos[lista].map(x => filaCatalogo(x.nombre, x.activo ? '' : 'Desactivada', x.activo,
       [[x.activo ? 'Quitar' : 'Reactivar', () => alternar(x)]])) : [vacio(vacia)]));
   $('cat-factores').replaceChildren(...(catalogos.factores.length ? catalogos.factores.map(f => filaCatalogo(`${f.producto} · por ${f.unidad}`,
@@ -1192,7 +1468,7 @@ function aviso(texto, r){
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; toastReg = null; }, 8000);
 }
 $('toast-deshacer').onclick = () => {
-  if (toastReg && anular(toastReg)) { $('toast').hidden = true; render(); }
+  if (toastReg && anularConHijos(toastReg)) { $('toast').hidden = true; render(); }
   toastReg = null;
 };
 
@@ -1223,8 +1499,10 @@ function generarCSV(lista){
   return '﻿' + COLUMNAS.join(sep) + '\r\n' + filas.join('\r\n') + '\r\n';
 }
 const firma = r => `${r.id}|${r.anulado}|${r.fin || ''}|${r.editado || ''}`; // cambia si el registro se anula, se cierra o se edita después de exportarlo
-const sinExportar = () => registros.filter(r => !exportados.has(firma(r))).length;
-function delDia(){ const h = hoyStr(); return registros.filter(r => r.fecha_hora_captura.slice(0, 10) === h || (r.fin || '').slice(0, 10) === h); }
+// Los importes de venta solo salen con el modo Finanzas
+const exportables = () => finanzas ? registros : registros.filter(r => r.tipo !== 'venta');
+const sinExportar = () => exportables().filter(r => !exportados.has(firma(r))).length;
+function delDia(){ const h = hoyStr(); return exportables().filter(r => r.fecha_hora_captura.slice(0, 10) === h || (r.fin || '').slice(0, 10) === h); }
 function nombreArchivo(){ return `${hoyStr()}_captura_${slug(usuario.nombre)}_${slug(usuario.dispositivo)}.csv`; }
 function descargar(file){
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
@@ -1232,7 +1510,7 @@ function descargar(file){
   setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 }
 async function exportar(soloHoy){
-  const lista = soloHoy ? delDia() : registros;
+  const lista = soloHoy ? delDia() : exportables();
   if (!lista.length) { await avisar(soloHoy ? 'Hoy no hay registros.' : 'No hay registros.', 'Nada que exportar'); return false; }
   const file = new File([generarCSV(lista)], nombreArchivo(), { type: 'text/csv' });
   try {
@@ -1253,7 +1531,7 @@ $('exp-todo').onclick = () => exportar(false);
 function renderExportar(){
   $('c-hoy').textContent = delDia().length;
   $('c-pend').textContent = sinExportar();
-  $('c-total').textContent = registros.length;
+  $('c-total').textContent = exportables().length;
   const u = leer(K.ultimoExport, null);
   $('exp-ultimo').textContent = u ? `Última exportación: ${hora(u.cuando)} · ${u.archivo} · ${u.n} registros` : 'Todavía no se ha exportado nada desde esta tablet.';
 }
@@ -1265,11 +1543,13 @@ function renderMas(){
   $('m-reg').textContent = registros.length; $('m-version').textContent = VERSION;
   $('no-instalada').hidden = instalada();
   document.querySelector(`input[name=sep][value="${separador()}"]`).checked = true;
+  $('m-finanzas').checked = finanzas;
   renderCatalogos();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { $('m-persist').textContent = p ? 'Sí' : 'No (exporta seguido)'; });
   else $('m-persist').textContent = 'No disponible (exporta seguido)';
 }
 document.querySelectorAll('input[name=sep]').forEach(el => el.onchange = () => guardar(K.separador, el.value));
+$('m-finanzas').onchange = e => { if (guardar(K.finanzas, e.target.checked)) finanzas = e.target.checked; render(); };
 $('m-borrar-todo').onclick = async () => {
   if (!registros.length && !ordenes.length) { await avisar('No hay órdenes ni registros en esta tablet.', 'Nada que borrar'); return; }
   const pend = sinExportar();

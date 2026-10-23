@@ -42,14 +42,14 @@ p{margin:0 0 12px}
 svg.ic{width:26px;height:26px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Estructura: vertical = barra abajo; horizontal ancho = riel a la izquierda */
-#app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;grid-template-areas:"barra" "main" "nav"} /* fijo a la pantalla: el menú no se va al recargar */
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto auto;grid-template-areas:"barra" "main" "expo" "nav"} /* fijo a la pantalla: el menú no se va al recargar */
 #barra{grid-area:barra}
 main{grid-area:main;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:var(--gap);padding-left:max(var(--gap),env(safe-area-inset-left));padding-right:max(var(--gap),env(safe-area-inset-right))}
 #nav{grid-area:nav;display:flex;background:var(--card);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
 #nav button{position:relative;flex:1;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--muted);font-size:15px;font-weight:600}
 #nav button[aria-current="page"]{color:var(--fg);box-shadow:inset 0 3px 0 var(--fg)}
 @media (orientation:landscape) and (min-width:900px){
-  #app{grid-template-columns:112px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"nav barra" "nav main"}
+  #app{grid-template-columns:112px 1fr;grid-template-rows:auto 1fr auto;grid-template-areas:"nav barra" "nav main" "nav expo"}
   #nav{flex-direction:column;justify-content:flex-start;border-top:0;border-right:1px solid var(--border);padding:max(12px,env(safe-area-inset-top)) 0 env(safe-area-inset-bottom) env(safe-area-inset-left)}
   #nav button{flex:none;min-height:88px}
   #nav button[aria-current="page"]{box-shadow:inset 4px 0 0 var(--fg)}
@@ -63,6 +63,14 @@ main{grid-area:main;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow
 #barra .estado span{color:var(--muted);font-size:15px}
 #barra.activa{background:var(--accent-soft);color:var(--accent-fg)}
 #barra.activa .estado span{color:inherit}
+#barra.pausa{background:var(--warn-bg);color:var(--warn-fg)}
+#barra.pausa .estado span{color:inherit}
+#barra.noche{background:#14224D;color:#DCE4FF} /* turno noche: recuerda de un vistazo que hay estaciones bloqueadas */
+#barra.noche .estado span{color:#B8C6F0}
+#barra.noche .btn{background:#0B1633;color:#DCE4FF;border-color:#DCE4FF}
+#expo{grid-area:expo;border:0;border-top:1px solid var(--border);padding:8px var(--gap);min-height:40px;text-align:left;font-weight:700;font-size:15px;background:var(--warn-bg);color:var(--warn-fg)}
+#expo.ok{background:var(--accent-soft);color:var(--accent-fg)}
+#expo.nada{background:var(--card);color:var(--muted)}
 
 /* Componentes */
 .tarjeta{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:var(--gap);margin-bottom:var(--gap)}
@@ -190,10 +198,10 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 #error{position:fixed;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));z-index:30;background:var(--danger);color:var(--on-danger);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 #error p{flex:1;margin:0}
 #error button{min-height:48px;border:2px solid currentColor;background:none;border-radius:10px;padding:0 14px;font-weight:700;color:inherit}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:20;width:min(560px,calc(100% - 24px));background:var(--primary);color:var(--on-primary);border-radius:var(--radius);padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(128px + env(safe-area-inset-bottom));z-index:20;width:min(560px,calc(100% - 24px));background:var(--primary);color:var(--on-primary);border-radius:var(--radius);padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 #toast p{flex:1;margin:0;font-weight:600}
 #toast button{min-height:52px;padding:0 18px;border-radius:10px;border:2px solid currentColor;background:none;color:inherit;font-weight:800}
-@media (orientation:landscape) and (min-width:900px){#toast{bottom:calc(20px + env(safe-area-inset-bottom))}}
+@media (orientation:landscape) and (min-width:900px){#toast{bottom:calc(64px + env(safe-area-inset-bottom))}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -241,6 +249,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             </div>
             <div id="orden-resumen" class="orden-resumen"></div>
             <div id="acciones-orden" class="acciones-orden" hidden>
+              <button type="button" id="btn-merma-orden" class="btn chico">+ Merma</button>
               <button type="button" id="btn-editar" class="btn chico">Editar orden</button>
               <button type="button" id="btn-anular-orden" class="btn chico">Anular orden</button>
               <button type="button" id="btn-borrar-orden" class="btn chico borde-peligro">Borrar orden</button>
@@ -420,6 +429,8 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
     </section>
   </main>
 
+  <button type="button" id="expo" hidden></button>
+
   <nav id="nav" aria-label="Secciones">
     <button type="button" data-v="orden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h6"/></svg>Orden</button>
     <button type="button" data-v="merma"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 21h10M5 7h14M5 7l-3 6a3 3 0 006 0zM19 7l-3 6a3 3 0 006 0z"/></svg>Merma</button>
@@ -437,7 +448,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -461,7 +472,7 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
   'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde',
   'importe_total','tipo_entrada','material_nombre','lote_proveedor','entrada_ref','cant_requerida','cant_a_produccion','cant_devuelta',
-  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida'];
+  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida','min_pausa'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
   catalogos:'zs_cap_catalogos' };
@@ -708,6 +719,22 @@ async function iniciarSesion(desde){
   render();
   return !!sesion;
 }
+// Pausa: los minutos en pausa no cuentan como observados (pausas cerradas + la abierta hasta «hasta»)
+const regSesion = () => sesion && registros.find(x => x.tipo === 'sesion' && x.sesion_id === sesion.id);
+const minPausa = (pausas, abierta, hasta) => redondo((pausas || []).reduce((t, [a, b]) => t + minutosEntre(a, b), 0) + (abierta ? minutosEntre(abierta, hasta) : 0), 1);
+function pausarSesion(){
+  const ahora = isoLocal(new Date());
+  sesion.pausa = ahora;
+  if (!guardar(K.sesion, sesion)) { sesion.pausa = null; return; }
+  render(); aviso(`Observación en pausa desde ${hora(ahora)}. Lo observado no se registra hasta reanudar.`);
+}
+function reanudarSesion(){
+  const ahora = isoLocal(new Date()), r = regSesion();
+  if (r && !actualizar(r, { pausas: [...(r.pausas || []), [sesion.pausa, ahora]], editado: ahora })) return false;
+  const previa = sesion.pausa; sesion.pausa = null;
+  if (!guardar(K.sesion, sesion)) { sesion.pausa = previa; return false; }
+  render(); return true;
+}
 async function terminarSesion(){
   const r = registros.find(x => x.tipo === 'sesion' && x.sesion_id === sesion.id);
   const hechos = registros.filter(x => x.tipo !== 'sesion' && x.sesion_id === sesion.id).length;
@@ -720,7 +747,8 @@ async function terminarSesion(){
   } else {
     if (await preguntar('Terminar la observación', `Llevas ${cuenta(hechos, 'registro')} en esta observación. Se guarda la hora de fin; lo que registres después ya no queda ligado a ella.`,
       [{ v: 'si', t: 'Terminar observación', c: 'prim' }, { v: null, t: 'Seguir observando' }]) !== 'si') return;
-    if (r && !actualizar(r, { fin: isoLocal(new Date()) })) return;
+    const ahora = isoLocal(new Date());
+    if (r && !actualizar(r, Object.assign({ fin: ahora }, sesion.pausa ? { pausas: [...(r.pausas || []), [sesion.pausa, ahora]] } : {}))) return;
   }
   const previa = sesion; sesion = null;
   if (!guardar(K.sesion, null)) sesion = previa;
@@ -731,15 +759,24 @@ function renderBarra(){
   b.replaceChildren();
   if (!usuario) { b.hidden = true; return; }
   b.hidden = false;
-  b.classList.toggle('activa', !!sesion);
+  b.classList.toggle('activa', !!sesion && !sesion.pausa);
+  b.classList.toggle('pausa', !!(sesion && sesion.pausa));
+  b.classList.toggle('noche', !!(sesion && !sesion.pausa && sesion.turno === 'noche'));
   const est = document.createElement('div'); est.className = 'estado';
   const t = document.createElement('strong');
   const s = document.createElement('span');
-  s.textContent = `${usuario.nombre} · ${usuario.dispositivo}`;
+  s.textContent = `${usuario.nombre} · ${usuario.dispositivo}` + (sesion && sesion.turno === 'noche' ? ` · Noche: solo ${NOCHE.join(', ')}` : '');
   const btn = document.createElement('button'); btn.type = 'button';
   if (sesion) {
-    t.textContent = `Observando desde ${hora(sesion.inicio)} · ${Math.max(0, Math.floor(minutosEntre(sesion.inicio, isoLocal(new Date()))))} min` + (sesion.turno ? ` · turno ${sesion.turno}` : '');
+    const ahora = isoLocal(new Date()), r = regSesion();
+    const obs = Math.max(0, Math.floor(minutosEntre(sesion.inicio, ahora) - minPausa(r && r.pausas, sesion.pausa, ahora)));
+    t.textContent = (sesion.pausa ? `En pausa desde ${hora(sesion.pausa)} · ${obs} min observados` : `Observando desde ${hora(sesion.inicio)} · ${obs} min`) + (sesion.turno ? ` · turno ${sesion.turno}` : '');
     btn.className = 'btn'; btn.textContent = 'Terminar observación'; btn.onclick = terminarSesion;
+    const pb = document.createElement('button'); pb.type = 'button';
+    pb.className = 'btn' + (sesion.pausa ? ' ok' : ''); pb.textContent = sesion.pausa ? 'Reanudar' : 'Pausar';
+    pb.onclick = () => sesion.pausa ? reanudarSesion() : pausarSesion();
+    est.append(t, s); b.append(est, pb, btn);
+    return;
   } else {
     t.textContent = 'Sin observación activa';
     btn.className = 'btn ok'; btn.textContent = 'Iniciar observación'; btn.onclick = iniciarSesion;
@@ -837,6 +874,7 @@ $('btn-nueva').onclick = async () => {
   abrirFormOC();
 };
 $('btn-editar').onclick = () => abrirFormOrden(orden());
+$('btn-merma-orden').onclick = () => registrarMerma(); // atajo: sin ir a la pestaña Merma
 $('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = null; };
 $('no-mas-insumo').onclick = () => filaInsumo($('no-insumos')).querySelector('input').focus();
 $('form-orden').onsubmit = async e => {
@@ -1154,6 +1192,10 @@ async function prepararOrigen(){
     if (origen === 'documento' && !(documento = $('in-doc').value.trim())) {
       await avisar('Escribe el nombre o folio del documento de donde sale la hora.', 'Falta el documento'); $('in-doc').focus(); return null;
     }
+  } else if (sesion && sesion.pausa) {
+    if (await preguntar('Observación en pausa', 'Lo observado solo cuenta con la observación activa.',
+      [{ v: 'si', t: 'Reanudar y registrar', c: 'ok' }, { v: null, t: 'Cancelar' }]) !== 'si' || !reanudarSesion()) return null;
+    evento = isoLocal(new Date());
   } else if (!sesion) {
     const r = await preguntar('No hay observación activa', 'Lo que observas debe quedar ligado a una observación para poder decir "N eventos en X horas observadas".',
       [{ v: 'iniciar', t: 'Iniciar observación y registrar', c: 'ok' }, { v: 'sin', t: 'Registrar sin observación' }, { v: null, t: 'Cancelar' }]);
@@ -1787,7 +1829,7 @@ function calculados(r, cache){
       else Object.assign(c, { cant_entregada: salido(o.orden), completo: ss.length ? 'no' : '', fecha_pedida: o.fecha_pedida });
     }
   }
-  if (r.tipo === 'sesion' && r.inicio && r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
+  if (r.tipo === 'sesion' && r.inicio && r.fin) { c.min_pausa = minPausa(r.pausas); c.minutos = redondo(minutosEntre(r.inicio, r.fin) - c.min_pausa, 1); } // minutos observados
   if (r.tipo === 'cierre') Object.assign(c, balance(r));
   return c;
 }
@@ -1834,6 +1876,15 @@ async function exportar(soloHoy){
 }
 $('exp-hoy').onclick = () => exportar(true);
 $('exp-todo').onclick = () => exportar(false);
+// Barra fija: verde solo cuando todo lo de hoy ya salió en un CSV exportado hoy
+function renderExpo(){
+  const e = $('expo'), pend = sinExportar(), u = leer(K.ultimoExport, null), hoy = u && u.cuando.slice(0, 10) === hoyStr();
+  e.hidden = !usuario || vista === 'inicio';
+  e.className = pend ? '' : hoy ? 'ok' : 'nada';
+  e.textContent = pend ? `${cuenta(pend, 'registro')} sin exportar · toca para exportar`
+    : hoy ? `Todo exportado (${hora(u.cuando)}) · sube el CSV a la carpeta del día en el Drive` : 'Sin registros nuevos por exportar';
+}
+$('expo').onclick = () => mostrar('exportar');
 function renderExportar(){
   $('c-hoy').textContent = delDia().length;
   $('c-pend').textContent = sinExportar();
@@ -1897,6 +1948,7 @@ function render(){
   const pend = usuario ? sinExportar() : 0;
   $('badge-pend').hidden = !pend; $('badge-pend').textContent = pend ? (pend > 99 ? '99+' : pend) : '';
   renderBarra();
+  renderExpo();
   if (vista === 'orden') renderOrden();
   if (vista === 'merma') renderMerma();
   if (vista === 'exportar') renderExportar();

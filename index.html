@@ -254,6 +254,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             <div class="campo"><label for="no-oc">OC</label><input type="text" id="no-oc" list="dl-oc" autocapitalize="characters"></div>
             <div class="campo"><label for="no-producto">Producto</label><input type="text" id="no-producto" list="dl-producto"></div>
             <div class="campo"><label for="no-linea">Línea</label><input type="text" id="no-linea" list="dl-linea" autocapitalize="characters"></div>
+            <div class="campo"><label for="no-entrega">Fecha de entrega comprometida</label><input type="date" id="no-entrega"></div>
             <h3>Insumos del producto</h3>
             <div id="no-insumos"></div>
             <button type="button" id="no-mas-insumo" class="btn chico" style="margin-bottom:14px">+ Otro insumo</button>
@@ -263,10 +264,12 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
           <form id="form-oc" class="tarjeta" novalidate hidden>
             <h2>Nueva OC</h2>
-            <p class="ayuda">Un producto que se fabrica por captura; queda como una orden de producción. Si la OC trae otro producto, vuelve a capturar la OC con ese producto y el importe total actualizado de toda la OC.</p>
+            <p class="ayuda">Un producto que se fabrica por captura; queda como una orden de producción. Si la OC trae otro producto, vuelve a capturar la OC con ese producto.</p>
             <div class="campo"><label for="oc-oc">OC <span class="req">*</span></label><input type="text" id="oc-oc" list="dl-oc" autocapitalize="characters"></div>
             <div class="campo"><label for="oc-cliente">Cliente <span class="req">*</span></label><input type="text" id="oc-cliente" list="dl-cliente"></div>
             <div class="campo"><label for="oc-fecha">Fecha de la OC <span class="req">*</span></label><input type="date" id="oc-fecha"></div>
+            <div class="campo"><label for="oc-entrega">Fecha de entrega comprometida <span class="req">*</span></label><input type="date" id="oc-entrega">
+              <small>Con ella se calcula el OTIF a la salida de planta.</small></div>
             <div class="campo"><label for="oc-producto">Producto que se fabrica <span class="req">*</span></label><input type="text" id="oc-producto" list="dl-producto"></div>
             <div class="campo"><label for="oc-cant">Cantidad pedida (unidades) <span class="req">*</span></label><input type="number" id="oc-cant" min="0" step="1" inputmode="numeric"></div>
             <h3>Insumos del producto <span class="req">*</span></h3>
@@ -274,8 +277,6 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             <div id="oc-insumos"></div>
             <button type="button" id="oc-mas" class="btn chico" style="margin-bottom:14px">+ Otro insumo</button>
             <datalist id="dl-insumo"></datalist>
-            <div class="campo"><label for="oc-importe">Importe total de la venta <span class="req">*</span></label><input type="number" id="oc-importe" min="0" step="any" inputmode="decimal">
-              <small>De toda la OC, sin precios unitarios. Después solo se ve en modo Finanzas (Más).</small></div>
             <div class="campo"><label for="oc-linea">Línea</label><input type="text" id="oc-linea" list="dl-linea" autocapitalize="characters"></div>
             <div class="fila"><button type="submit" class="btn prim">Guardar OC</button><button type="button" id="oc-cancelar" class="btn">Cancelar</button></div>
           </form>
@@ -308,6 +309,20 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
               <button type="button" id="btn-devolucion" class="btn">Devolución a almacén</button>
             </div>
             <p class="ayuda" style="margin:12px 0 0">Otra entrada: después de «MP recibida». Devolución: después de entregar a producción en «Inicio de producción». Los dos usan el origen del dato de arriba.</p>
+          </div>
+
+          <div id="corrida-orden" class="tarjeta" style="margin-top:var(--gap)" hidden>
+            <h2>Producciones</h2>
+            <p id="corrida-info" class="ayuda" style="margin-top:0"></p>
+            <button type="button" id="btn-corrida" class="btn">+ Nueva producción</button>
+            <p class="ayuda" style="margin:12px 0 0">Cuando un turno o día termina su producción (hasta «PT listo»), la siguiente empieza otra vez en «Inicio de producción», con su propia entrega de MP y su lote. Las salidas van aparte, una por embarque.</p>
+          </div>
+
+          <div id="paros-orden" class="tarjeta" style="margin-top:var(--gap)" hidden>
+            <h2>Paros</h2>
+            <button type="button" id="btn-paro" class="btn">Registrar paro</button>
+            <p class="ayuda" style="margin:12px 0 0">La hora del paro es la del toque (o la de Documento o Testimonio). Mientras está abierto, marca cuándo llega Mantenimiento y cuándo termina la reparación.</p>
+            <div id="lista-paros" style="margin-top:8px"></div>
           </div>
         </div>
 
@@ -388,18 +403,14 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
       <div class="tarjeta">
         <h2>Catálogos</h2>
         <p class="ayuda">Quitar solo desactiva: los registros viejos conservan su texto.</p>
-        <h3>Causas</h3><div id="cat-causas"></div>
+        <h3>Causas de merma</h3><div id="cat-causas"></div>
         <h3 style="margin-top:16px">Equipos</h3><div id="cat-equipos"></div>
         <button type="button" id="cat-nuevo-equipo" class="btn chico" style="margin-top:8px">+ Nuevo equipo</button>
+        <h3 style="margin-top:16px">Causas de paro</h3><div id="cat-causas_paro"></div>
         <h3 style="margin-top:16px">Factores piezas-peso</h3>
-        <p class="ayuda">Por producto: kg de MP por pieza según la fórmula (no el peso del envase). El cierre lo multiplica por el PT conforme en unidades. merma_pct solo se calcula con factor confirmado con planta.</p>
+        <p class="ayuda">Por producto: kg de MP en UNA pieza según la fórmula (ej. 0.37 para un frasco de 370 g; no el total de la orden ni el peso del envase). El cierre lo multiplica por el PT conforme en unidades. merma_pct solo se calcula con factor confirmado con planta.</p>
         <div id="cat-factores"></div>
         <button type="button" id="cat-nuevo-factor" class="btn chico" style="margin-top:8px">+ Nuevo factor</button>
-      </div>
-      <div class="tarjeta">
-        <h2>Finanzas</h2>
-        <label class="check"><input type="checkbox" id="m-finanzas"> Ver importes de venta</label>
-        <p class="ayuda">Cliente, producto y cantidad los ven todos. El importe total de la OC solo aparece con esta opción, y solo así sale en el CSV.</p>
       </div>
       <div class="tarjeta">
         <h2>Empezar de cero</h2>
@@ -426,7 +437,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.4.3';
+const VERSION = '0.5.0';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -450,10 +461,10 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
   'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde',
   'importe_total','tipo_entrada','material_nombre','lote_proveedor','entrada_ref','cant_requerida','cant_a_produccion','cant_devuelta',
-  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando'];
+  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
-  catalogos:'zs_cap_catalogos', finanzas:'zs_cap_finanzas' };
+  catalogos:'zs_cap_catalogos' };
 
 const $ = id => document.getElementById(id);
 
@@ -627,7 +638,7 @@ if (!catalogos.equipos_limpios) { // 0.4.1: la lista de equipos empieza vacía; 
   catalogos.equipos_limpios = true;
   if (!bloqueadas.has(K.catalogos)) guardar(K.catalogos, catalogos);
 }
-let finanzas = leer(K.finanzas, false);       // muestra y exporta los importes de venta
+catalogos.causas_paro = catalogos.causas_paro || []; // 0.5.0: causas de paro, aparte de las de merma
 let vista = 'orden';
 
 // ---------- Fechas ----------
@@ -669,13 +680,15 @@ function anularConHijos(r){
     .forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `anulado por ${usuario.nombre} ${ahora}`; }));
 }
 
-// Última etapa vigente (no anulada) de cada paso de una orden
-function etapasDe(orden){
+// Última etapa vigente (no anulada) de cada paso de una orden. Inicio, Fin y PT listo son de la producción k;
+// Salida no entra aquí porque se repite (una por embarque): ver salidasDe.
+function etapasDe(orden, k){
   const res = ETAPAS.map(() => null);
   for (const r of registros) {
     if (r.tipo !== 'etapa' || r.anulado !== 'no' || r.orden !== orden) continue;
     const i = ETAPAS.indexOf(r.etapa);
-    if (i >= 0 && (!res[i] || r.fecha_hora_captura >= res[i].fecha_hora_captura)) res[i] = r;
+    if (i < 0 || i === 6 || (i >= 3 && k && (r.corrida || 1) !== k)) continue;
+    if (!res[i] || r.fecha_hora_captura >= res[i].fecha_hora_captura) res[i] = r;
   }
   return res;
 }
@@ -740,7 +753,6 @@ const claveOrden = (oc, producto) => `${oc} · ${producto}`; // cada producto de
 const deOrden = o => ({ orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '' });
 const delTipo = (tipo, orden) => registros.filter(r => r.tipo === tipo && r.anulado === 'no' && r.orden === orden);
 const hijosDe = r => registros.filter(x => x.etapa_ref === r.id && x.anulado === 'no');
-const ventaDe = oc => registros.filter(r => r.tipo === 'venta' && r.anulado === 'no' && oc && r.oc === oc).pop() || null;
 // Entradas de MP de una orden: la de la etapa «MP recibida» más las que se agregan después
 const entradasDe = orden => registros.filter(r => r.anulado === 'no' && r.orden === orden && (r.tipo === 'entrada' || (r.tipo === 'etapa' && r.etapa === 'MP recibida')))
   .sort((a, b) => a.fecha_hora_evento.localeCompare(b.fecha_hora_evento));
@@ -774,6 +786,24 @@ function leerInsumos(cont){
   return xs;
 }
 // Receta de la última orden del mismo producto, para proponerla
+const corridaDe = o => o.corrida || 1; // producción en curso de la orden
+const deCorrida = (r, k) => (r.corrida || 1) === k;
+const etapasVig = (orden, etapa) => registros.filter(r => r.tipo === 'etapa' && r.etapa === etapa && r.anulado === 'no' && r.orden === orden)
+  .sort((a, b) => a.fecha_hora_evento.localeCompare(b.fecha_hora_evento));
+const salidasDe = orden => etapasVig(orden, 'Salida');
+const fabricado = orden => suma(etapasVig(orden, 'Fin de producción'), 'cant_fabricada');
+const salido = orden => suma(salidasDe(orden), 'cant_sale');
+const terminada = o => salidasDe(o.orden).length > 0 && (!o.cant_pedida || salido(o.orden) >= o.cant_pedida);
+const sino = v => v === undefined ? '' : v ? 'sí' : 'no';
+// OTIF a la salida de planta: a tiempo si sale en o antes de la fecha comprometida; completo si lo entregado acumulado cubre lo pedido
+function otifDe(o, fechaHora, acum){
+  const fs = fechaHora.slice(0, 10);
+  const completo = o.cant_pedida ? acum >= o.cant_pedida : undefined, a_tiempo = o.fecha_pedida ? fs <= o.fecha_pedida : undefined;
+  return { fecha_salida: fs, fecha_pedida: o.fecha_pedida, cant_pedida: o.cant_pedida, cant_entregada: acum, base_otif: 'salida de planta',
+    completo: sino(completo), a_tiempo: sino(a_tiempo), otif: completo === undefined || a_tiempo === undefined ? '' : sino(completo && a_tiempo) };
+}
+console.assert(otifDe({ cant_pedida: 10, fecha_pedida: '2026-10-25' }, '2026-10-24T10:00:00', 10).otif === 'sí'
+  && otifDe({ cant_pedida: 10, fecha_pedida: '2026-10-25' }, '2026-10-26T10:00:00', 10).otif === 'no', 'otif');
 function recetaPrevia(o){
   const otras = registros.filter(r => r.tipo === 'receta' && r.anulado === 'no' && r.orden !== o.orden && o.producto && normal(r.producto || '') === normal(o.producto));
   // shortcut: propone por nombre de insumo; si la orden nueva cambió de insumos, esos renglones quedan en blanco
@@ -793,6 +823,7 @@ function abrirFormOrden(o){
   $('form-orden-titulo').textContent = o ? `Editar orden ${o.orden}` : 'Nueva orden';
   if (o) { $('no-orden').value = o.orden; $('no-cliente').value = o.cliente || ''; $('no-oc').value = o.oc || ''; $('no-producto').value = o.producto || ''; $('no-linea').value = o.linea || ''; }
   llenarInsumos($('no-insumos'), o && o.insumos);
+  $('no-entrega').value = o && o.fecha_pedida || '';
   llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
   $('no-orden').focus();
 }
@@ -823,7 +854,11 @@ $('form-orden').onsubmit = async e => {
   if (editando) {
     const o = orden(), ahora = isoLocal(new Date()), viejo = editando;
     const cambio = ['orden', 'cliente', 'oc', 'producto', 'linea'].some(k => (o[k] || '') !== datos[k]);
-    const cambioIns = textoInsumos(o.insumos || []) !== textoInsumos(insumos);
+    const cambioIns = textoInsumos(o.insumos || []) !== textoInsumos(insumos), fecha_pedida = v('no-entrega');
+    if ((o.fecha_pedida || '') !== fecha_pedida && !guardarTodo(() => {
+      orden().fecha_pedida = fecha_pedida;
+      registros.filter(r => r.tipo === 'oc' && r.orden === viejo && r.anulado === 'no').forEach(r => { r.fecha_pedida = fecha_pedida; r.editado = ahora; });
+    })) return;
     // la corrección también llega a las etapas ya registradas, con rastro en la nota
     if (cambioIns && !guardarTodo(() => {
       orden().insumos = insumos;
@@ -844,12 +879,12 @@ $('form-orden').onsubmit = async e => {
   elegirOrden(datos.orden);
 };
 
-// Momento 1 · Ventas: la OC con el producto que se fabrica y sus insumos; queda como una orden. El importe es de toda la OC.
+// Momento 1 · Ventas: la OC con el producto que se fabrica, sus insumos y la fecha de entrega comprometida; queda como una orden.
 function abrirFormOC(){
   $('form-orden').hidden = true; editando = null;
   $('form-oc').reset(); $('form-oc').hidden = false;
   llenarInsumos($('oc-insumos'), null);
-  $('oc-fecha').value = hoyStr();
+  $('oc-fecha').value = hoyStr(); $('oc-entrega').value = '';
   llenarDatalist('dl-cliente', 'cliente'); llenarDatalist('dl-oc', 'oc'); llenarDatalist('dl-producto', 'producto'); llenarDatalist('dl-linea', 'linea');
   $('oc-oc').focus();
 }
@@ -863,26 +898,22 @@ $('oc-cancelar').onclick = () => { $('form-oc').hidden = true; };
 $('form-oc').onsubmit = async e => {
   e.preventDefault();
   const v = id => $(id).value.trim();
-  const oc = v('oc-oc'), cliente = v('oc-cliente'), fecha_oc = v('oc-fecha'), linea = v('oc-linea'), importe = Number($('oc-importe').value);
+  const oc = v('oc-oc'), cliente = v('oc-cliente'), fecha_oc = v('oc-fecha'), fecha_pedida = v('oc-entrega'), linea = v('oc-linea');
   const cant = Number(v('oc-cant')), insumos = leerInsumos($('oc-insumos'));
   const prods = [{ producto: v('oc-producto'), cant, unidad: 'Unidades' }]; // la cantidad del producto siempre va en unidades
-  const falta = !oc ? 'el número de OC' : !cliente ? 'el cliente' : !fecha_oc ? 'la fecha de la OC' : !prods[0].producto ? 'el producto que se fabrica'
+  const falta = !oc ? 'el número de OC' : !cliente ? 'el cliente' : !fecha_oc ? 'la fecha de la OC' : !fecha_pedida ? 'la fecha de entrega comprometida'
+    : fecha_pedida < fecha_oc ? 'una fecha de entrega igual o posterior a la fecha de la OC' : !prods[0].producto ? 'el producto que se fabrica'
     : !(v('oc-cant') !== '' && Number.isInteger(cant) && cant > 0) ? 'la cantidad pedida (unidades enteras, mayor que 0)'
-    : typeof insumos === 'string' ? '' : !insumos.length ? 'al menos un insumo del producto'
-    : !(v('oc-importe') !== '' && importe > 0) ? 'el importe total de la venta (mayor que 0)' : '';
+    : typeof insumos === 'string' ? '' : !insumos.length ? 'al menos un insumo del producto' : '';
   if (typeof insumos === 'string') { await avisar(insumos, 'Revisa los insumos'); return; }
   if (falta) { await avisar(`Falta ${falta}.`, 'Faltan datos'); return; }
   const ya = prods.filter(p => ordenes.some(o => !o.anulada && o.orden.toLowerCase() === claveOrden(oc, p.producto).toLowerCase()));
   if (ya.length) { await avisar(`Esa OC (${oc}) ya tiene la orden de ${lista3(ya.map(p => p.producto))}. Para corregirla usa Editar orden.`, 'Orden repetida'); return; }
-  const ahora = isoLocal(new Date()), previa = ventaDe(oc);
-  const nuevas = prods.map(p => ({ orden: claveOrden(oc, p.producto), cliente, oc, producto: p.producto, linea, cant_pedida: p.cant, unidad_pedida: p.unidad, insumos, fecha_oc, creada: ahora }));
-  const filas = [...nuevas.map(n => armarRegistro(Object.assign({ tipo: 'oc', area: 'Ventas' }, deOrden(n),
-      { cant_pedida: n.cant_pedida, unidad: n.unidad_pedida, insumos: textoInsumos(insumos), fecha_oc, origen: 'documento', documento: oc }))),
-    armarRegistro({ tipo: 'venta', area: 'Ventas', oc, cliente, importe_total: importe, fecha_oc, origen: 'documento', documento: oc })];
-  if (!guardarTodo(() => {
-    ordenes.push(...nuevas); registros.push(...filas);
-    if (previa) { previa.anulado = 'sí'; previa.nota = (previa.nota ? previa.nota + ' | ' : '') + `importe reemplazado por ${usuario.nombre} ${ahora}`; }
-  })) return;
+  const ahora = isoLocal(new Date());
+  const nuevas = prods.map(p => ({ orden: claveOrden(oc, p.producto), cliente, oc, producto: p.producto, linea, cant_pedida: p.cant, unidad_pedida: p.unidad, insumos, fecha_oc, fecha_pedida, creada: ahora }));
+  const filas = nuevas.map(n => armarRegistro(Object.assign({ tipo: 'oc', area: 'Ventas' }, deOrden(n),
+    { cant_pedida: n.cant_pedida, unidad: n.unidad_pedida, insumos: textoInsumos(insumos), fecha_oc, fecha_pedida, origen: 'documento', documento: oc })));
+  if (!guardarTodo(() => { ordenes.push(...nuevas); registros.push(...filas); })) return;
   $('form-oc').hidden = true;
   elegirOrden(nuevas[0].orden);
   aviso(`Orden creada: ${nuevas[0].orden}.`);
@@ -928,8 +959,8 @@ function reiniciarOrigen(){
 // saltar deja las etapas sin dato sin registrar la que tocaste; una que ya pasó no puede ser "observada" ahora.
 // Estado por etapa: 'hecha' (registro vigente) · 'noaplica' (MP liberada cuando la MP vino consolidada) · 'saltada' · null.
 function estadoOrden(o){
-  const lista = etapasDe(o.orden), saltadas = o.saltadas || [];
-  const est = ETAPAS.map((e, i) => lista[i] ? 'hecha' : saltadas.includes(e) ? 'saltada' : null);
+  const lista = etapasDe(o.orden, corridaDe(o)), saltadas = o.saltadas || [];
+  const est = ETAPAS.map((e, i) => i === 6 ? null : lista[i] ? 'hecha' : saltadas.includes(e) ? 'saltada' : null); // Salida se repite: no cierra la secuencia
   if (!lista[1] && lista[0] && lista[0].consolidada === 'sí') est[1] = 'noaplica';
   const ultima = est.reduce((u, x, i) => x ? i : u, -1);
   return { lista, est, ultima, siguiente: ultima + 1 < ETAPAS.length ? ultima + 1 : -1 };
@@ -942,9 +973,8 @@ const sinMateriales = async (titulo, texto) => await preguntar(titulo, texto, [{
 // Momento 2 · Almacén MP: compra o del cliente, material, unidad, cantidad. El lote del proveedor liga la MP con el lote de PT.
 // El material sale de los insumos de la orden (de ahí también si es MP o empaque). null si la orden no tiene insumos.
 const pendientes = o => (o.insumos || []).filter(i => !entradasDe(o.orden).some(e => e.material_nombre === i.nombre));
-// Entradas, receta, entregas y devoluciones de la orden: al registrar producción llevan el lote de PT
-const ligadosAlLote = o => registros.filter(x => x.orden === o.orden && x.anulado === 'no' &&
-  (['entrada', 'receta', 'entrega', 'devolucion'].includes(x.tipo) || (x.tipo === 'etapa' && x.etapa === 'MP recibida')));
+// Entrega y devoluciones de una producción: al registrar su Fin llevan su lote de PT (una entrada de MP puede alimentar varios lotes)
+const ligadosAlLote = (o, k) => registros.filter(x => x.orden === o.orden && x.anulado === 'no' && ['entrega', 'devolucion'].includes(x.tipo) && deCorrida(x, k));
 async function pedirEntrada(o, titulo, texto){
   const ins = pendientes(o); // los que ya entraron salen del menú
   if (!(o.insumos || []).length) { await avisar('Esta orden no tiene insumos. Agrégalos con «Editar orden» y vuelve a intentar.', 'Sin insumos'); return null; }
@@ -978,6 +1008,10 @@ async function tocarEtapa(o, i){
     if (await preguntar('Faltan insumos', `No se puede pasar a «${ETAPAS[i]}» hasta que entren todos los insumos de la OC.\nFaltan: ${falta.map(x => x.nombre).join(', ')}.`,
       [{ v: 'si', t: 'Registrar los que faltan', c: 'prim' }, { v: null, t: 'Cancelar' }]) === 'si') await otraEntrada();
     return;
+  }
+  if (i === 6 && etapasVig(o.orden, 'PT listo').length) { // Salida: una por embarque, en cualquier momento después de un PT listo
+    if (bloqueadaDeNoche(ETAPAS[i])) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
+    return registrarEtapa(o, i, lista);
   }
   if (est[i] === 'noaplica') {
     await avisar('La MP vino consolidada, así que MP liberada no aplica en esta orden.\nSi eso está mal, toca «MP recibida» y rehazla.', 'No aplica');
@@ -1037,56 +1071,70 @@ async function datosEtapa(o, etapa, lista){
     // Momento 3 · entrega a producción: de qué entrada sale cada MP y cada empaque. Precarga la receta si el material llegó en una sola entrada.
     const es = entradasDe(o.orden).sort((a, b) => (a.material === 'Empaque') - (b.material === 'Empaque'));
     if (!es.length) return sinMateriales(titulo, 'Esta orden no tiene entradas de MP registradas, así que no hay de dónde entregar.');
-    const receta = recetaDe(o.orden);
-    const vals = es.map(e => { const x = receta.find(y => mismoMat(y, e)); return x && es.filter(y => mismoMat(y, e)).length === 1 ? x.cant_requerida : ''; });
+    // Cada producción recibe su propia entrega: se precarga lo que falta de la receta y se avisa si pasa de lo disponible en la entrada
+    const receta = recetaDe(o.orden), k = corridaDe(o), previas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden);
+    const de = (xs, e) => xs.filter(x => x.entrada_ref === e.id);
+    const disponible = e => redondo((Number(e.cant_recibida) || 0) - suma(de(previas, e), 'cant_a_produccion') + suma(de(devs, e), 'cant_devuelta'));
+    const vals = es.map(e => { const x = receta.find(y => mismoMat(y, e)); if (!x || es.filter(y => mismoMat(y, e)).length !== 1) return '';
+      return Math.max(0, redondo(x.cant_requerida - suma(previas.filter(y => mismoMat(y, e)), 'cant_a_produccion'))); });
     for (;;) {
-      const d = await pedirDatos(titulo, 'Cuánto se entrega a producción de cada entrada (0 si de esa no sale nada). Primero MP y después empaque.' +
+      const d = await pedirDatos(titulo, `Producción ${k}. Cuánto se entrega de cada entrada (0 si de esa no sale nada). Primero MP y después empaque.` +
         (receta.length ? '' : '\nEsta orden no tiene receta: revisa «Explosión de materiales».'),
-        es.map((e, n) => ({ k: 'e' + n, label: `${e.material === 'Empaque' ? 'Empaque' : 'MP'} · ${textoEntrada(e)}`, tipo: 'num', cero: true, valor: vals[n] })));
+        es.map((e, n) => ({ k: 'e' + n, label: `${e.material === 'Empaque' ? 'Empaque' : 'MP'} · ${textoEntrada(e)} · disponible ${disponible(e)}`, tipo: 'num', cero: true, valor: vals[n] })));
       if (!d) return null;
       es.forEach((e, n) => { vals[n] = d['e' + n]; });
       if (!vals.some(x => x > 0)) { await avisar('Escribe cuánto se entrega de al menos una entrada.', 'Entrega vacía'); continue; }
-      const pasan = es.filter((e, n) => vals[n] > (Number(e.cant_recibida) || 0));
-      if (pasan.length && !(await revisar(`Se entrega más de lo que llegó en: ${pasan.map(nombreMat).join(', ')}.`))) continue;
+      const pasan = es.filter((e, n) => vals[n] > disponible(e));
+      if (pasan.length && !(await revisar(`Se entrega más de lo disponible en: ${pasan.map(nombreMat).join(', ')}.`))) continue;
       return { hijos: es.map((e, n) => vals[n] > 0 && { tipo: 'entrega', entrada_ref: e.id, material: e.material, material_nombre: e.material_nombre, unidad: e.unidad,
         tipo_entrada: e.tipo_entrada, lote_proveedor: e.lote_proveedor, cant_a_produccion: vals[n] }).filter(Boolean) };
     }
   }
   if (etapa === 'Fin de producción') {
-    // Momento 4 · registrar producción: el lote lo pone producción; la cantidad se liga a la OC y el lote a lo entregado
-    const ent = delTipo('entrega', o.orden);
-    const texto = [o.cant_pedida ? `Pedido en la OC: ${o.cant_pedida} unidades.` : '',
-      ent.length ? `Entregado a producción: ${ent.map(x => `${x.material_nombre || 'MP'} ${x.cant_a_produccion} ${x.unidad || ''}${x.lote_proveedor ? ` (lote ${x.lote_proveedor})` : ''}`).join(', ')}.`
-        : 'Sin entrega a producción registrada.', 'El lote queda escrito en las entradas, la receta, las entregas y las devoluciones de esta orden.'].filter(Boolean).join('\n');
+    // Momento 4 · registrar producción: lo de este turno o día, con su lote; la cantidad no se liga a lo pedido (la OC se completa en varias producciones)
+    const k = corridaDe(o), ent = delTipo('entrega', o.orden).filter(x => deCorrida(x, k)), antes = fabricado(o.orden);
+    const texto = [`Producción ${k}.` + (o.cant_pedida ? ` La OC pide ${o.cant_pedida} unidades; en producciones anteriores se fabricaron ${antes}.` : ''),
+      ent.length ? `Entregado a esta producción: ${ent.map(x => `${x.material_nombre || 'MP'} ${x.cant_a_produccion} ${x.unidad || ''}${x.lote_proveedor ? ` (lote ${x.lote_proveedor})` : ''}`).join(', ')}.`
+        : 'Sin entrega de MP registrada en esta producción.', 'El lote queda escrito en la entrega y las devoluciones de esta producción.'].join('\n');
+    const empaques = suma(ent.filter(x => x.material === 'Empaque' && x.unidad === 'Unidades'), 'cant_a_produccion');
     const campos = [{ k: 'lote', label: 'Número de lote', tipo: 'texto' },
-      { k: 'cant_fabricada', label: 'Cantidad fabricada (unidades)', tipo: 'entero', valor: o.cant_pedida },
+      { k: 'cant_fabricada', label: 'Cantidad fabricada (unidades)', tipo: 'entero' },
       { k: 'observaciones', label: 'Observaciones', tipo: 'texto', opcional: true }];
     for (;;) {
       const d = await pedirDatos(titulo, texto, campos);
       if (!d) return null;
       campos.forEach(c => { c.valor = d[c.k]; });
       d.unidad = 'Unidades'; // lo fabricado siempre se cuenta en unidades
-      if (o.cant_pedida && d.cant_fabricada !== o.cant_pedida && !(await revisar(`Fabricadas ${d.cant_fabricada} unidades; la OC pide ${o.cant_pedida}.`))) continue;
-      const otro = registros.find(r => r.tipo === 'etapa' && r.etapa === etapa && r.anulado === 'no' && r.orden !== o.orden && normal(r.lote || '') === normal(d.lote));
-      if (!otro || await revisar(`El lote ${d.lote} ya está en la orden ${otro.orden}.`)) return d;
+      // poka-yoke: sin empaque no hay pieza
+      if (empaques && d.cant_fabricada > empaques && !(await revisar(`Fabricadas ${d.cant_fabricada} unidades, pero a esta producción se entregaron ${empaques} empaques.`))) continue;
+      const otro = registros.find(r => r.tipo === 'etapa' && r.etapa === etapa && r.anulado === 'no' && !(r.orden === o.orden && deCorrida(r, k)) && normal(r.lote || '') === normal(d.lote));
+      if (!otro || await revisar(`El lote ${d.lote} ya está en ${otro.orden} (producción ${otro.corrida || 1}).`)) return d;
     }
   }
   if (etapa === 'PT listo') return pedirDatos(titulo, '', [{ k: 'tarimas_pt', label: 'Tarimas que pasan a PT desde Fin de producción', tipo: 'entero' }]);
   if (etapa === 'Salida') {
-    const pt = lista[ETAPAS.indexOf('PT listo')] && lista[ETAPAS.indexOf('PT listo')].tarimas_pt;
+    // Cada salida es un embarque: primero las tarimas que esperan, luego lo que sale. Las unidades alimentan el OTIF.
+    const enPT = suma(etapasVig(o.orden, 'PT listo'), 'tarimas_pt') - suma(salidasDe(o.orden), 'tarimas_salida');
+    const fab = fabricado(o.orden), sal = salido(o.orden);
+    const esp = await preguntar('¿Hay tarimas esperando?', `En PT hay ${cuenta(Math.max(enPT, 0), 'tarima')} sin salir.`,
+      [{ v: 'si', t: 'Sí', c: 'prim' }, { v: 'no', t: 'No', c: 'prim' }, { v: null, t: 'Cancelar' }]);
+    if (!esp) return null;
+    let espera = 0;
+    if (esp === 'si') {
+      const e = await pedirDatos(titulo, '', [{ k: 'tarimas_esperando', label: '¿Cuántas tarimas esperando?', tipo: 'entero' }]);
+      if (!e) return null;
+      espera = e.tarimas_esperando;
+    }
+    const campos = [{ k: 'tarimas_salida', label: 'Tarimas que salen desde PT', tipo: 'entero' },
+      { k: 'destino', label: 'Destino del PT', tipo: 'opc', opciones: LUGARES },
+      { k: 'cant_sale', label: 'Unidades que salen', tipo: 'entero', valor: fab > sal ? fab - sal : '' }];
     for (;;) {
-      const d = await pedirDatos(titulo, pt ? `En PT hay ${cuenta(pt, 'tarima')}.` : '', [
-        { k: 'tarimas_salida', label: 'Tarimas que salen desde PT', tipo: 'entero' },
-        { k: 'destino', label: 'Destino del PT', tipo: 'opc', opciones: LUGARES }]);
+      const d = await pedirDatos(titulo, `Fabricado: ${fab} · ya salió: ${sal}${o.cant_pedida ? ` · pedido: ${o.cant_pedida}` : ''} unidades.`, campos);
       if (!d) return null;
-      if (pt && d.tarimas_salida > pt && !(await revisar(`Salen ${d.tarimas_salida} tarimas, pero a PT pasaron ${pt}.`))) continue;
-      const esp = await preguntar('¿Hay tarimas esperando?', 'Tarimas que se quedan esperando para salir.',
-        [{ v: 'si', t: 'Sí', c: 'prim' }, { v: 'no', t: 'No', c: 'prim' }, { v: null, t: 'Cancelar' }]);
-      if (!esp) return null;
-      if (esp === 'no') return Object.assign(d, { tarimas_esperando: 0 });
-      const e = await pedirDatos(titulo, '', [{ k: 'tarimas_esperando', label: '¿Cuántas tarimas esperando?', tipo: 'entero',
-        valor: pt && pt > d.tarimas_salida ? pt - d.tarimas_salida : '' }]);
-      return e && Object.assign(d, e);
+      campos.forEach(c => { c.valor = d[c.k]; });
+      if (d.tarimas_salida > Math.max(enPT, 0) && !(await revisar(`Salen ${d.tarimas_salida} tarimas, pero en PT hay ${Math.max(enPT, 0)}.`))) continue;
+      if (d.cant_sale > fab - sal && !(await revisar(`Salen ${d.cant_sale} unidades, pero de lo fabricado quedan ${Math.max(fab - sal, 0)}.`))) continue;
+      return Object.assign(d, { tarimas_esperando: espera });
     }
   }
   return {};
@@ -1126,15 +1174,16 @@ async function registrarEtapa(o, i, lista){
   if (!extra) return;
 
   const { hijos = [], ...datos } = extra;
-  const base = Object.assign(deOrden(o), { origen, documento, fecha_hora_evento: evento, area: AREAS[etapa] });
+  const base = Object.assign(deOrden(o), { origen, documento, fecha_hora_evento: evento, area: AREAS[etapa], corrida: i >= 3 && i <= 5 ? corridaDe(o) : undefined });
   const r = armarRegistro(Object.assign({ tipo: 'etapa', etapa }, base, datos));
   const filas = hijos.map(h => armarRegistro(Object.assign({ etapa, etapa_ref: r.id }, base, h)));
   if (!guardarTodo(() => {
     registros.push(r, ...filas);
     if ((o.saltadas || []).includes(etapa)) o.saltadas = o.saltadas.filter(e => e !== etapa);
-    if (etapa === 'Fin de producción') ligadosAlLote(o).forEach(x => { x.lote = datos.lote; x.editado = r.fecha_hora_captura; });
+    if (etapa === 'Fin de producción') ligadosAlLote(o, corridaDe(o)).forEach(x => { x.lote = datos.lote; x.editado = r.fecha_hora_captura; });
   })) return;
   if (etapa === 'MP recibida') { render(); await entradasRestantes(o, { origen, documento, evento }); }
+  reiniciarOrigen();
   pausaHasta = Date.now() + 1200; render(); setTimeout(render, 1250);
   aviso(`${o.orden} · ${etapa} · ${hora(evento)}`, r);
 }
@@ -1147,15 +1196,15 @@ async function rehacerDesde(o, i, lista){
     `Registrada a las ${hora(r.fecha_hora_evento)} (${origen}) por ${r.capturo}.\n\n` +
     (despues.length ? `Rehacer anula esta etapa y las siguientes: ${lista3(despues)}.` : 'Rehacer anula esta etapa.') +
     ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.' +
-    (afectadas.some(x => x.etapa === 'Inicio de producción') ? '\nTambién se anulan la entrega a producción y las devoluciones de esta orden.' : ''),
+    (afectadas.some(x => x.etapa === 'Inicio de producción') ? '\nTambién se anulan la entrega y las devoluciones de esta producción.' : ''),
     [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Rehacer desde aquí', c: 'borde-peligro' }]) !== 'si') return;
   const ahora = isoLocal(new Date());
   if (!guardarTodo(() => {
     const ids = new Set(afectadas.map(x => x.id)), conInicio = afectadas.some(x => x.etapa === 'Inicio de producción');
-    registros.filter(x => x.anulado === 'no' && (ids.has(x.id) || ids.has(x.etapa_ref) || (conInicio && x.tipo === 'devolucion' && x.orden === o.orden)))
+    registros.filter(x => x.anulado === 'no' && (ids.has(x.id) || ids.has(x.etapa_ref) || (conInicio && x.tipo === 'devolucion' && x.orden === o.orden && deCorrida(x, corridaDe(o)))))
       .forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; });
     o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < i);
-    if (afectadas.some(x => x.etapa === 'Fin de producción')) ligadosAlLote(o).forEach(x => { delete x.lote; x.editado = ahora; });
+    if (afectadas.some(x => x.etapa === 'Fin de producción')) ligadosAlLote(o, corridaDe(o)).forEach(x => { delete x.lote; x.editado = ahora; });
   })) return;
   render(); aviso(`${o.orden}: registra de nuevo «${ETAPAS[i]}».`);
 }
@@ -1173,7 +1222,7 @@ function resumenDatos(r){
     'Explosión de materiales': hijosDe(r).length && `Receta: ${hijosDe(r).map(x => `${x.material_nombre} ${x.cant_requerida}${x.unidad ? ' ' + x.unidad : ''}`).join(', ')}`,
     'Inicio de producción': r.cant_utilizada ? `${r.cant_utilizada} ${r.unidad} utilizados` : hijosDe(r).length && `Entregado: ${hijosDe(r).map(x => `${nombreMat(x)} ${x.cant_a_produccion}`).join(', ')}`,
     'Fin de producción': r.lote && `Lote ${r.lote} · ${r.cant_fabricada} ${r.unidad}${r.observaciones ? ` · ${r.observaciones}` : ''}`,
-    'Salida': r.tarimas_salida && `${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}` + (r.tarimas_esperando ? ` · ${cuenta(r.tarimas_esperando, 'tarima')} esperando` : r.tarimas_esperando === 0 ? ' · sin tarimas esperando' : ''),
+    'Salida': r.tarimas_salida && `${r.cant_sale ? `${r.cant_sale} unidades · ` : ''}${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}` + (r.tarimas_esperando ? ` · ${cuenta(r.tarimas_esperando, 'tarima')} esperando` : r.tarimas_esperando === 0 ? ' · sin tarimas esperando' : ''),
     'PT listo': r.tarimas_pt && `${cuenta(r.tarimas_pt, 'tarima')} a PT`,
   }[r.etapa] || '';
 }
@@ -1182,7 +1231,7 @@ function resumenDatos(r){
 function llenarSelectOrdenes(sel){
   const vigentes = [], terminadas = [];
   const activas = ordenes.filter(o => !o.anulada);
-  for (const o of activas) (etapasDe(o.orden)[ETAPAS.length - 1] ? terminadas : vigentes).push(o);
+  for (const o of activas) (terminada(o) ? terminadas : vigentes).push(o);
   const opcion = (v, t) => { const op = document.createElement('option'); op.value = v; op.textContent = t; return op; };
   const items = [opcion('', activas.length ? 'Elige una orden…' : 'Aún no hay órdenes: crea una OC')];
   // Agrupadas por OC: al buscar la OC quedan a la vista solo sus productos
@@ -1190,7 +1239,7 @@ function llenarSelectOrdenes(sel){
   for (const o of activas.slice().reverse()) { const k = o.oc || 'Sin OC'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(o); }
   for (const [oc, lista] of grupos) {
     const g = document.createElement('optgroup'); g.label = [oc, lista[0].cliente].filter(Boolean).join(' · ');
-    lista.forEach(o => g.append(opcion(o.orden, (o.orden === claveOrden(o.oc, o.producto) ? o.producto : o.orden) + (terminadas.includes(o) ? ' · con salida' : ''))));
+    lista.forEach(o => g.append(opcion(o.orden, (o.orden === claveOrden(o.oc, o.producto) ? o.producto : o.orden) + (terminadas.includes(o) ? ' · completa' : ''))));
     items.push(g);
   }
   sel.replaceChildren(...items);
@@ -1216,7 +1265,7 @@ function renderOrden(){
       const btn = document.createElement('button'); btn.type = 'button';
       btn.className = 'btn ' + (bloqueadaDeNoche(ETAPAS[siguiente]) ? '' : 'prim');
       const faltan = siguiente > 0 ? pendientes(x).length : 0;
-      btn.textContent = faltan ? `Faltan ${cuenta(faltan, 'insumo')}` : ETAPAS[siguiente];
+      btn.textContent = faltan ? `Faltan ${cuenta(faltan, 'insumo')}` : ETAPAS[siguiente] + (siguiente >= 3 && siguiente <= 5 && corridaDe(x) > 1 ? ` (${corridaDe(x)})` : '');
       btn.setAttribute('aria-label', `Registrar ${ETAPAS[siguiente]} de ${x.orden}`);
       btn.disabled = Date.now() < pausaHasta;
       btn.onclick = () => { if (x.orden !== ordenActual) elegirOrden(x.orden); tocarEtapa(x, siguiente); };
@@ -1226,9 +1275,8 @@ function renderOrden(){
   }));
 
   const o = orden();
-  const venta = o && finanzas && ventaDe(o.oc);
   $('orden-resumen').textContent = o ? [o.cliente && `Cliente: ${o.cliente}`, o.oc && `OC: ${o.oc}`, o.producto && `Producto: ${o.producto}`,
-    o.cant_pedida && `Cantidad: ${o.cant_pedida} ${o.unidad_pedida || ''}`.trim(), venta && `Importe de la OC: $${venta.importe_total.toLocaleString('es-MX')}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
+    o.cant_pedida && `Cantidad: ${o.cant_pedida} ${o.unidad_pedida || ''}`.trim(), o.fecha_pedida && `Entrega: ${o.fecha_pedida.split('-').reverse().join('/')}`].filter(Boolean).join(' · ') || 'Sin cliente, OC ni producto' : '';
 
   $('acciones-orden').hidden = !o;
   const { lista, est, ultima, siguiente } = o ? estadoOrden(o) : { lista: ETAPAS.map(() => null), est: ETAPAS.map(() => null), ultima: -1, siguiente: -1 };
@@ -1236,6 +1284,14 @@ function renderOrden(){
   $('btn-entrada').disabled = !lista[0];
   $('btn-devolucion').disabled = !o || !delTipo('entrega', o.orden).length;
   renderTraza(o);
+  renderParos(o);
+  $('corrida-orden').hidden = !o;
+  if (o) {
+    const k = corridaDe(o);
+    $('corrida-info').textContent = `Producción ${k} ${est[5] ? 'terminada' : 'en curso'} · fabricado ${fabricado(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} · salió ${salido(o.orden)} unidades`;
+    $('btn-corrida').textContent = `+ Nueva producción (${k + 1})`;
+    $('btn-corrida').disabled = !est[5];
+  }
   const pend = o && lista[0] ? pendientes(o).length : 0;
   $('etapas').classList.toggle('pausa', Date.now() < pausaHasta);
   $('etapas').replaceChildren(...ETAPAS.map((nombre, i) => {
@@ -1244,14 +1300,16 @@ function renderOrden(){
                : i === siguiente ? 'siguiente' : (est[i] === 'saltada' || i < ultima) ? 'faltante' : 'bloqueada';
     if (pend && i === 0 && tipo === 'hecha') tipo = 'incompleta'; // MP recibida no se da por hecha mientras falten insumos
     else if (pend && tipo === 'siguiente') tipo = 'bloqueada';
+    else if (i === 6 && o && !pend && etapasVig(o.orden, 'PT listo').length) tipo = terminada(o) ? 'hecha' : 'siguiente'; // Salida se repite
     b.className = 'etapa ' + (tipo === 'incompleta' ? 'faltante' : tipo);
     b.disabled = !o;
     const num = document.createElement('span'); num.className = 'num'; num.setAttribute('aria-hidden', 'true');
     if (tipo === 'hecha') num.innerHTML = '<svg class="ic" viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M5 12l5 5 9-10"/></svg>'; else num.textContent = i + 1;
     const txt = document.createElement('span'); txt.className = 'txt';
-    const n = document.createElement('b'); n.textContent = nombre;
+    const n = document.createElement('b'); n.textContent = nombre + (o && i >= 3 && i <= 5 && corridaDe(o) > 1 ? ` · producción ${corridaDe(o)}` : '');
     const s = document.createElement('span');
-    s.textContent = {
+    const nSal = o ? salidasDe(o.orden).length : 0;
+    s.textContent = i === 6 && nSal ? `${cuenta(nSal, 'salida')} · ${salido(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} unidades · toca para otra salida` : {
       hecha: lista[i] && `${hora(lista[i].fecha_hora_evento)} · toca para rehacer`,
       incompleta: `Faltan ${cuenta(pend, 'insumo')} por llegar · toca para registrarlos`,
       noaplica: 'No aplica · la MP vino consolidada',
@@ -1267,10 +1325,19 @@ function renderOrden(){
 
   const ol = $('tiempo'); ol.replaceChildren();
   if (!o) { const li = document.createElement('li'); li.className = 'vacia'; li.textContent = 'Elige una orden para ver sus tiempos.'; ol.append(li); $('tiempo-total').textContent = ''; return; }
+  const cacheMin = new Map();
   ETAPAS.forEach((nombre, i) => {
     const r = lista[i];
     const li = document.createElement('li');
-    const t = document.createElement('div'); const b = document.createElement('b'); b.textContent = nombre; t.append(b);
+    const t = document.createElement('div'); const b = document.createElement('b'); t.append(b);
+    b.textContent = nombre + (i >= 3 && i <= 5 && corridaDe(o) > 1 ? ` (producción ${corridaDe(o)})` : '');
+    if (i === 6) { // Salidas: una por embarque
+      const ss = salidasDe(o.orden);
+      if (!ss.length) { li.className = 'vacia'; t.append(' — pendiente'); li.append(t); ol.append(li); return; }
+      b.textContent = 'Salidas'; t.append(` · ${salido(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} unidades`); li.append(t);
+      ss.forEach(x => { const d = document.createElement('div'); d.textContent = `${hora(x.fecha_hora_evento)} · ${resumenDatos(x)}`; li.append(d); });
+      ol.append(li); return;
+    }
     if (!r) {
       li.className = 'vacia';
       t.append({ noaplica: ' — no aplica', saltada: ' — saltada' }[est[i]] || ' — pendiente');
@@ -1279,11 +1346,10 @@ function renderOrden(){
     t.append(` · ${hora(r.fecha_hora_evento)}`);
     const et = etiquetaOrigen(r.origen); if (et) t.append(et);
     li.append(t);
-    const j = anteriorRegistrada(lista, i);
-    if (j >= 0) {
-      const min = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento);
+    const cm = calculados(r, cacheMin);
+    if (cm.minutos !== undefined) {
       const m = document.createElement('span'); m.className = 'min';
-      m.textContent = min >= 0 ? `+${min} min desde ${ETAPAS[j]}` : `${-min} min ANTES de ${ETAPAS[j]}: revisar`;
+      m.textContent = cm.minutos >= 0 ? `+${cm.minutos} min desde ${cm.minutos_desde}` : `${-cm.minutos} min ANTES de ${cm.minutos_desde}: revisar`;
       li.append(m);
     }
     const datos = [resumenDatos(r), r.documento && `Documento: ${r.documento}`,
@@ -1347,12 +1413,13 @@ async function devolucion(){
     const r = nuevoRegistro(Object.assign({ tipo: 'devolucion', area: 'Producción' }, deOrden(o),
       { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento, entrada_ref: e.id, material: e.material, material_nombre: e.material_nombre,
         unidad: e.unidad, tipo_entrada: e.tipo_entrada, lote_proveedor: e.lote_proveedor, cant_devuelta: d.cant_devuelta,
-        lote: (etapasDe(o.orden)[ETAPAS.indexOf('Fin de producción')] || {}).lote }));
+        corrida: corridaDe(o), lote: (etapasDe(o.orden, corridaDe(o))[ETAPAS.indexOf('Fin de producción')] || {}).lote }));
     if (r) despuesDeGuardar(`${o.orden} · regresan ${d.cant_devuelta} de ${nombreMat(e)}`, r);
     return;
   }
 }
 $('btn-entrada').onclick = otraEntrada;
+$('btn-paro').onclick = () => registrarParo();
 $('btn-devolucion').onclick = devolucion;
 
 async function tocarEntrada(e){
@@ -1370,7 +1437,7 @@ async function tocarDevolucion(d){
 // Lote de PT ← entradas (lote del proveedor) con lo requerido, entregado y devuelto: lo que se enseña en una auditoría
 function renderTraza(o){
   if (!o) { $('traza').replaceChildren(); return; }
-  const fin = etapasDe(o.orden)[ETAPAS.indexOf('Fin de producción')];
+  const fines = etapasVig(o.orden, 'Fin de producción');
   const receta = recetaDe(o.orden), entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden), es = entradasDe(o.orden);
   const item = (titulo, detalle, fn) => {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'merma-item';
@@ -1380,14 +1447,79 @@ function renderTraza(o){
   };
   const p = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
   $('traza').replaceChildren(
-    p(fin && fin.lote ? `Lote de PT: ${fin.lote} · ${fin.cant_fabricada} ${fin.unidad}` : 'Lote de PT: pendiente (se escribe en «Fin de producción»).'),
+    ...(fines.length ? fines.map(f => { const k = f.corrida || 1, ent = entregas.filter(x => deCorrida(x, k));
+      return p(`Producción ${k} · lote ${f.lote} · ${f.cant_fabricada} unidades · ${hora(f.fecha_hora_evento)}` +
+        (ent.length ? ` · MP: ${ent.map(x => `${x.material_nombre || 'MP'} ${x.cant_a_produccion}${x.lote_proveedor ? ` (lote ${x.lote_proveedor})` : ''}`).join(', ')}` : '')); })
+      : [p('Lote de PT: pendiente (se escribe en «Fin de producción»).')]),
     ...(es.length ? es.map(e => {
       const req = receta.find(x => mismoMat(x, e));
       return item(textoEntrada(e), [`Receta del material: ${req ? req.cant_requerida : '—'}`,
         `Entregado: ${suma(entregas.filter(x => x.entrada_ref === e.id), 'cant_a_produccion')}`,
         `Devuelto: ${suma(devs.filter(x => x.entrada_ref === e.id), 'cant_devuelta')}`].join(' · '), () => tocarEntrada(e));
     }) : [p('Sin entradas de MP.')]),
-    ...devs.map(d => item(`Devolución · ${nombreMat(d)}: ${d.cant_devuelta}`, `${hora(d.fecha_hora_evento)} · ${d.lote_proveedor ? `lote prov. ${d.lote_proveedor} · ` : ''}toca para anular`, () => tocarDevolucion(d))));
+    ...devs.map(d => item(`Devolución · ${nombreMat(d)}: ${d.cant_devuelta}`, `${hora(d.fecha_hora_evento)} · ${d.lote_proveedor ? `lote prov. ${d.lote_proveedor} · ` : ''}toca para anular`, () => tocarDevolucion(d))),
+    ...salidasDe(o.orden).map(x => item(`Salida · ${hora(x.fecha_hora_evento)}`, `${resumenDatos(x)} · toca para anular`, () => tocarSalida(x))));
+}
+async function tocarSalida(x){
+  if (await preguntar('Anular esta salida', `${hora(x.fecha_hora_evento)} · ${resumenDatos(x)}\n\nQueda en el CSV como anulada, para que quede rastro.`,
+    [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Anular', c: 'borde-peligro' }]) === 'si' && anular(x)) render();
+}
+
+// ---------- Producciones y paros ----------
+$('btn-corrida').onclick = async () => {
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const k = corridaDe(o), { est, lista } = estadoOrden(o);
+  if (!est[5]) { await avisar(`Primero termina la producción ${k} hasta «PT listo».`, 'Producción en curso'); return; }
+  if (await preguntar(`Producción ${k + 1}`, `La producción ${k} queda cerrada${lista[4] && lista[4].lote ? ` (lote ${lista[4].lote})` : ''}. La ${k + 1} empieza en «Inicio de producción» con su propia entrega de MP y su lote.`,
+    [{ v: 'si', t: `Empezar producción ${k + 1}`, c: 'prim' }, { v: null, t: 'Cancelar' }]) !== 'si') return;
+  if (!guardarTodo(() => { o.corrida = k + 1; o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < 3); })) return;
+  render(); aviso(`${o.orden}: producción ${k + 1}. Sigue «Inicio de producción».`);
+};
+// Paro con tres horas: inicia (al tocar), llega Mantenimiento y termina la reparación
+async function registrarParo(){
+  const o = orden();
+  if (!o || Date.now() < pausaHasta) return;
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const d = await pedirDatos(`${o.orden} · Paro`, `Inicio del paro: ${hora(pre.evento)}.`, [
+    { k: 'equipo', label: 'Equipo', tipo: 'lista', opciones: activos('equipos'), todas: catalogos.equipos.map(x => x.nombre),
+      agregar: v => agregarCatalogo('equipos', v), textoNuevo: '+ Nuevo equipo' },
+    { k: 'causa', label: 'Causa del paro', tipo: 'lista', opciones: activos('causas_paro'), todas: catalogos.causas_paro.map(x => x.nombre),
+      agregar: v => agregarCatalogo('causas_paro', v), textoNuevo: '+ Nueva causa' }]);
+  if (!d) return;
+  const r = nuevoRegistro(Object.assign({ tipo: 'paro', area: 'Producción' }, deOrden(o),
+    { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento, inicio: pre.evento }, d));
+  if (r) despuesDeGuardar(`${o.orden} · paro en ${d.equipo} desde ${hora(pre.evento)}`, r);
+}
+async function marcarParo(r, campo){
+  if (Date.now() < pausaHasta) return;
+  const pre = await prepararOrigen();
+  if (!pre) return;
+  const desde = campo === 'fin' ? (r.llega_mtto || r.inicio) : r.inicio;
+  if (pre.evento < desde) { await avisar(`La hora (${hora(pre.evento)}) no puede ser antes de ${hora(desde)}.`, 'Revisa la hora'); return; }
+  if (campo === 'fin' && !r.llega_mtto && await preguntar('Sin Mantenimiento', '¿Se resolvió sin que llegara Mantenimiento?',
+    [{ v: 'si', t: 'Sí, terminó sin Mantenimiento', c: 'prim' }, { v: null, t: 'Cancelar' }]) !== 'si') return;
+  const nota = pre.origen === 'observado' ? r.nota
+    : (r.nota ? r.nota + ' | ' : '') + `${campo === 'fin' ? 'fin' : 'llegada de Mantenimiento'} por ${pre.origen}${pre.documento ? ' ' + pre.documento : ''}`;
+  if (!actualizar(r, { [campo]: pre.evento, editado: isoLocal(new Date()), nota })) return;
+  despuesDeGuardar(campo === 'fin' ? `${r.equipo}: paro terminado · ${minutosEntre(r.inicio, r.fin)} min` : `${r.equipo}: llegó Mantenimiento · ${minutosEntre(r.inicio, r.llega_mtto)} min de respuesta`);
+}
+async function anularParo(r){
+  if (await preguntar('Anular este paro', `${r.equipo} · ${r.causa} · ${hora(r.inicio)}\n\nQueda en el CSV como anulado, para que quede rastro.`,
+    [{ v: null, t: 'Dejarlo así', c: 'prim' }, { v: 'si', t: 'Anular', c: 'borde-peligro' }]) === 'si' && anular(r)) render();
+}
+function renderParos(o){
+  $('paros-orden').hidden = !o;
+  if (!o) return;
+  const ps = registros.filter(r => r.tipo === 'paro' && r.orden === o.orden).reverse();
+  $('lista-paros').replaceChildren(...(ps.length ? ps.map(r => filaCatalogo(`${r.equipo} · ${r.causa}${r.fin || r.anulado !== 'no' ? '' : ' · ABIERTO'}`,
+    [`Inicio ${hora(r.inicio)}`, r.llega_mtto ? `Mantenimiento ${hora(r.llega_mtto)}` : r.fin ? 'sin Mantenimiento' : 'esperando a Mantenimiento',
+      r.fin && `Fin ${hora(r.fin)} · ${minutosEntre(r.inicio, r.fin)} min`, r.anulado === 'no' ? '' : 'anulado'].filter(Boolean).join(' · '),
+    r.anulado === 'no',
+    r.anulado !== 'no' ? [] : r.fin ? [['Anular', () => anularParo(r)]]
+      : [...(r.llega_mtto ? [] : [['Llegó Mantenimiento', () => marcarParo(r, 'llega_mtto')]]), ['Terminó la reparación', () => marcarParo(r, 'fin')]]))
+    : [Object.assign(document.createElement('p'), { className: 'ayuda', textContent: 'Sin paros en esta orden.' })]));
 }
 
 // ---------- Merma ----------
@@ -1431,9 +1563,9 @@ async function registrarMerma(){
   const o = orden();
   if (!o || Date.now() < pausaHasta) return;
   // La merma se liga a lo que entró a la orden (MP y empaque) o a lo producido (PT no conforme)
-  const es = entradasDe(o.orden), fin = etapasDe(o.orden)[ETAPAS.indexOf('Fin de producción')];
+  const es = entradasDe(o.orden), fab = fabricado(o.orden);
   const disp = { MP: es.filter(e => e.material !== 'Empaque'), Empaque: es.filter(e => e.material === 'Empaque') };
-  const tipos = MATERIALES.filter(m => m === 'PT no conforme' ? fin && fin.cant_fabricada : disp[m].length);
+  const tipos = MATERIALES.filter(m => m === 'PT no conforme' ? fab > 0 : disp[m].length);
   if (!tipos.length) { await avisar('La merma se liga a lo que entró a la orden o a lo producido, y esta orden todavía no tiene entradas de MP ni producción registrada.', 'Nada que ligar'); return; }
   const pre = await prepararOrigen();
   if (!pre) return;
@@ -1446,14 +1578,14 @@ async function registrarMerma(){
   const campos = [
     ...(pt ? [] : [{ k: 'material_nombre', label: material === 'MP' ? '¿Qué MP?' : '¿Qué empaque?', tipo: 'opc', opciones: nombres, valor: nombres.length === 1 ? nombres[0] : '' }]),
     { k: 'momento', label: 'Momento', tipo: 'opc', opciones: MOMENTOS },
-    { k: 'cant_merma', label: pt ? `Piezas (producidas: ${fin.cant_fabricada})` : 'Cantidad, en la unidad en que entró', tipo: pt ? 'entero' : 'num' },
+    { k: 'cant_merma', label: pt ? `Piezas (producidas: ${fab})` : 'Cantidad, en la unidad en que entró', tipo: pt ? 'entero' : 'num' },
     { k: 'medicion', label: 'Cómo se midió', tipo: 'opc', opciones: pt ? ['Contado', 'Estimado'] : MEDICIONES },
     { k: 'causa', label: 'Causa', tipo: 'lista', opciones: activos('causas'), todas: catalogos.causas.map(x => x.nombre),
       agregar: v => agregarCatalogo('causas', v), textoNuevo: '+ Nueva causa' },
     { k: 'destino_merma', label: 'Destino', tipo: 'opc', opciones: DESTINOS_MERMA },
     { k: 'equipo', label: 'Equipo', tipo: 'lista', opcional: true, opciones: activos('equipos'), todas: catalogos.equipos.map(x => x.nombre),
       agregar: v => agregarCatalogo('equipos', v), textoNuevo: '+ Nuevo equipo' }];
-  const texto = pt ? `Ya marcadas como no conformes: ${yaPT} de ${fin.cant_fabricada} piezas producidas.` : `Unidad en que entró: ${nombres.map(n => `${n} en ${unidadDe(n)}`).join(', ')}.`;
+  const texto = pt ? `Ya marcadas como no conformes: ${yaPT} de ${fab} piezas producidas.` : `Unidad en que entró: ${nombres.map(n => `${n} en ${unidadDe(n)}`).join(', ')}.`;
   for (;;) {
     const d = await pedirDatos(`${o.orden} · Merma de ${material}`, texto, campos,
       // poka-yoke: lo contado va en unidades y lo pesado en Kg o Lt, según la unidad en que entró el material
@@ -1463,8 +1595,8 @@ async function registrarMerma(){
     if (!d) return;
     campos.forEach(c => { c.valor = d[c.k]; });
     Object.assign(d, { material, unidad: unidadDe(d.material_nombre) });
-    const tope = pt ? fin.cant_fabricada - yaPT : suma(disp[material].filter(e => nom(e) === d.material_nombre), 'cant_recibida');
-    if (d.cant_merma > tope && !(await revisar(pt ? `Son ${d.cant_merma} piezas, pero de las ${fin.cant_fabricada} producidas quedan ${tope} sin marcar como no conformes.`
+    const tope = pt ? fab - yaPT : suma(disp[material].filter(e => nom(e) === d.material_nombre), 'cant_recibida');
+    if (d.cant_merma > tope && !(await revisar(pt ? `Son ${d.cant_merma} piezas, pero de las ${fab} producidas quedan ${tope} sin marcar como no conformes.`
       : `Son ${d.cant_merma} ${d.unidad} de ${d.material_nombre}, pero llegaron ${tope}.`))) continue;
     const r = nuevoRegistro(Object.assign({ tipo: 'merma', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
       origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d));
@@ -1487,30 +1619,43 @@ async function cerrarOrden(){
   const fs = factoresDe(o.producto);
   const kgMP = tipo => delTipo(tipo, o.orden).filter(x => x.material === 'MP' && x.unidad === 'Kg');
   const recibidoKg = suma(entradasDe(o.orden).filter(x => (x.material || 'MP') === 'MP' && x.unidad === 'Kg'), 'cant_recibida');
-  const fin = etapasDe(o.orden)[ETAPAS.indexOf('Fin de producción')];
+  const fab = fabricado(o.orden), entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden);
+  const mermasPT = registros.filter(r => r.tipo === 'merma' && r.anulado === 'no' && r.orden === o.orden && r.material === 'PT no conforme');
+  const noConf = suma(mermasPT, 'cant_merma');
   const campos = [
     { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: recibidoKg || '' },
-    { k: 'pt_conforme_u', label: 'PT conforme (unidades)', tipo: 'entero', cero: true, valor: fin && fin.cant_fabricada },
-    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: delTipo('entrega', o.orden).length ? suma(kgMP('devolucion'), 'cant_devuelta') : '' },
-    { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true },
-    { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true }];
-  const aviso0 = [recibidoKg ? 'MP entregada viene con la MP recibida en kg' : '', fin ? 'PT conforme viene con lo fabricado' : ''].filter(Boolean).join('; ') + (recibidoKg || fin ? '. Corrígelos si no aplica.\n' : '') +
+    { k: 'pt_conforme_u', label: 'PT conforme (unidades)', tipo: 'entero', cero: true, valor: fab ? fab - noConf : '' },
+    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: entregas.length ? suma(kgMP('devolucion'), 'cant_devuelta') : '' },
+    { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true, valor: fab ? noConf : '' },
+    { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true, valor: (mermasPT[mermasPT.length - 1] || {}).destino_merma }];
+  const aviso0 = [recibidoKg ? 'MP entregada viene con la MP recibida en kg' : '', fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
     (fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`);
-  let d;
-  for (;;) {
-    d = await pedirDatos(`${o.orden} · Cierre de orden`, aviso0, campos);
-    if (!d) return;
-    if (!(d.pt_no_conforme_pz > 0 && !d.destino_merma)) break;
-    await avisar('Hay PT no conforme: elige su destino.', 'Falta el destino');
-    campos.forEach(c => { c.valor = d[c.k]; });
-  }
   const f = fs[0];
-  const datos = Object.assign({ tipo: 'cierre', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
-    origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d,
-    f ? { kg_mp_por_pieza: f.kg_pieza, factor_estado: f.estado } : {}); // copia del factor: rastro de con qué se calculó
-  const b = balance(datos);
-  if (b.merma_kg < 0 && await preguntar('Revisa el balance', `La merma da ${b.merma_kg} kg (negativa): el PT conforme pesa más que la MP entregada. Revisa las cantidades o el factor.`,
-    [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Guardar así' }]) !== 'si') return;
+  let datos;
+  for (;;) {
+    const d = await pedirDatos(`${o.orden} · Cierre de orden`, aviso0, campos);
+    if (!d) return;
+    campos.forEach(c => { c.valor = d[c.k]; });
+    if (d.pt_no_conforme_pz > 0 && !d.destino_merma) { await avisar('Hay PT no conforme: elige su destino.', 'Falta el destino'); continue; }
+    if (fab && d.pt_conforme_u + d.pt_no_conforme_pz !== fab
+      && !(await revisar(`PT conforme + no conforme = ${d.pt_conforme_u + d.pt_no_conforme_pz}, pero se fabricaron ${fab} unidades.`))) continue;
+    datos = Object.assign({ tipo: 'cierre', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
+      origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d,
+      f ? { kg_mp_por_pieza: f.kg_pieza, factor_estado: f.estado } : {}); // copia del factor: rastro de con qué se calculó
+    // poka-yoke: salir más MP de la que entró no puede pasar; casi siempre es el factor (kg de UNA pieza)
+    if (balance(datos).merma_kg < 0) {
+      await avisar(`Lo producido (${d.pt_conforme_u} piezas × ${f.kg_pieza} kg = ${redondo(d.pt_conforme_u * f.kg_pieza)} kg) más lo devuelto (${d.devuelto_kg} kg) pesa más que la MP entregada (${d.mp_entregada_kg} kg). ` +
+        'Eso no puede pasar. Revisa las cantidades o el factor «kg de MP en UNA pieza» en Más › Catálogos.', 'El balance no cuadra');
+      continue;
+    }
+    if (entregas.length && !devs.length && !d.devuelto_kg) {
+      const r = await preguntar('¿Hubo sobrante?', 'Se entregó MP a producción y no hay devoluciones registradas.',
+        [{ v: 'no', t: 'No hubo sobrante', c: 'prim' }, { v: 'dev', t: 'Registrar devolución primero' }, { v: null, t: 'Cancelar' }]);
+      if (r === 'dev') return devolucion();
+      if (!r) return;
+    }
+    break;
+  }
   const r = nuevoRegistro(datos);
   if (!r) return;
   if (previo) anular(previo);
@@ -1561,7 +1706,8 @@ const alternar = x => { x.activo = !x.activo; if (!guardar(K.catalogos, catalogo
 function renderCatalogos(){
   const vacio = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
   for (const [lista, cont, vacia] of [['causas', 'cat-causas', 'Todavía no hay causas: se agregan desde la ventana de merma.'],
-    ['equipos', 'cat-equipos', 'Sin equipos: se agregan desde la ventana de merma o con + Nuevo equipo.']])
+    ['equipos', 'cat-equipos', 'Sin equipos: se agregan desde merma, paros o con + Nuevo equipo.'],
+    ['causas_paro', 'cat-causas_paro', 'Todavía no hay causas de paro: se agregan al registrar un paro.']])
     $(cont).replaceChildren(...(catalogos[lista].length ? catalogos[lista].map(x => filaCatalogo(x.nombre, x.activo ? '' : 'Desactivada', x.activo,
       [[x.activo ? 'Quitar' : 'Reactivar', () => alternar(x)]])) : [vacio(vacia)]));
   $('cat-factores').replaceChildren(...(catalogos.factores.length ? catalogos.factores.map(f => filaCatalogo(f.producto,
@@ -1571,7 +1717,7 @@ function renderCatalogos(){
 async function editarFactor(f){
   const d = await pedirDatos(f ? 'Editar factor piezas-peso' : 'Nuevo factor piezas-peso', 'Kg de MP por pieza según la fórmula del producto, no el peso del envase (hay envase y, en productos cocidos, evaporación).', [
     { k: 'producto', label: 'Producto', tipo: 'texto', sugerencias: [...new Set(ordenes.map(o => o.producto).filter(Boolean))], valor: f && f.producto },
-    { k: 'kg_pieza', label: 'Kg de MP por pieza (según fórmula)', tipo: 'num', valor: f && f.kg_pieza },
+    { k: 'kg_pieza', label: 'Kg de MP en UNA pieza (ej. 0.37 para un frasco de 370 g)', tipo: 'num', valor: f && f.kg_pieza },
     { k: 'estado', label: 'Estado del factor', tipo: 'opc', opciones: ESTADOS_FACTOR, valor: f ? f.estado : 'Por confirmar' }]);
   if (!d) return;
   const repetido = catalogos.factores.find(x => x !== f && x.activo && normal(x.producto) === normal(d.producto));
@@ -1608,9 +1754,33 @@ $('toast-deshacer').onclick = () => {
 function calculados(r, cache){
   const c = {};
   if (r.tipo === 'etapa' && r.anulado === 'no') {
-    if (!cache.has(r.orden)) cache.set(r.orden, etapasDe(r.orden));
-    const lista = cache.get(r.orden), j = anteriorRegistrada(lista, ETAPAS.indexOf(r.etapa));
-    if (j >= 0) { c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = ETAPAS[j]; }
+    const i = ETAPAS.indexOf(r.etapa);
+    if (i === 6) { // Salida: desde el PT listo más reciente; OTIF con lo entregado acumulado hasta esta salida
+      const pt = etapasVig(r.orden, 'PT listo').filter(x => x.fecha_hora_evento <= r.fecha_hora_evento).pop();
+      if (pt) { c.minutos = minutosEntre(pt.fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = `PT listo (producción ${pt.corrida || 1})`; }
+      Object.assign(c, otifDe(ordenes.find(x => x.orden === r.orden) || {}, r.fecha_hora_evento,
+        suma(salidasDe(r.orden).filter(x => x.fecha_hora_evento <= r.fecha_hora_evento), 'cant_sale')));
+    } else {
+      const k = i >= 3 ? r.corrida || 1 : 0, clave = `${r.orden}|${k}`;
+      if (!cache.has(clave)) cache.set(clave, etapasDe(r.orden, k));
+      const lista = cache.get(clave), j = anteriorRegistrada(lista, i);
+      const prev = k > 1 && i === 3 && etapasVig(r.orden, 'PT listo').filter(x => deCorrida(x, k - 1)).pop(); // producción 2+: desde la anterior
+      if (prev) { c.minutos = minutosEntre(prev.fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = `PT listo (producción ${k - 1})`; }
+      else if (j >= 0) { c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = ETAPAS[j]; }
+    }
+  }
+  if (r.tipo === 'paro' && r.inicio) {
+    if (r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
+    if (r.llega_mtto) c.min_respuesta = minutosEntre(r.inicio, r.llega_mtto);
+    if (r.llega_mtto && r.fin) c.min_reparacion = minutosEntre(r.llega_mtto, r.fin);
+  }
+  if (r.tipo === 'oc' && r.anulado === 'no') { // OTIF de la OC: el de la salida que completa lo pedido
+    const o = ordenes.find(x => x.orden === r.orden);
+    if (o && o.cant_pedida) {
+      let acum = 0; const ss = salidasDe(o.orden), comp = ss.find(x => (acum += Number(x.cant_sale) || 0) >= o.cant_pedida);
+      if (comp) Object.assign(c, otifDe(o, comp.fecha_hora_evento, salido(o.orden)));
+      else Object.assign(c, { cant_entregada: salido(o.orden), completo: ss.length ? 'no' : '', fecha_pedida: o.fecha_pedida });
+    }
   }
   if (r.tipo === 'sesion' && r.inicio && r.fin) c.minutos = minutosEntre(r.inicio, r.fin);
   if (r.tipo === 'cierre') Object.assign(c, balance(r));
@@ -1631,8 +1801,7 @@ function generarCSV(lista){
   return '﻿' + COLUMNAS.join(sep) + '\r\n' + filas.join('\r\n') + '\r\n';
 }
 const firma = r => `${r.id}|${r.anulado}|${r.fin || ''}|${r.editado || ''}`; // cambia si el registro se anula, se cierra o se edita después de exportarlo
-// Los importes de venta solo salen con el modo Finanzas
-const exportables = () => finanzas ? registros : registros.filter(r => r.tipo !== 'venta');
+const exportables = () => registros.filter(r => r.tipo !== 'venta'); // los importes de venta de la 0.4.x ya no se usan ni se exportan
 const sinExportar = () => exportables().filter(r => !exportados.has(firma(r))).length;
 function delDia(){ const h = hoyStr(); return exportables().filter(r => r.fecha_hora_captura.slice(0, 10) === h || (r.fin || '').slice(0, 10) === h); }
 function nombreArchivo(){ return `${hoyStr()}_captura_${slug(usuario.nombre)}_${slug(usuario.dispositivo)}.csv`; }
@@ -1675,13 +1844,11 @@ function renderMas(){
   $('m-reg').textContent = registros.length; $('m-version').textContent = VERSION;
   $('no-instalada').hidden = instalada();
   document.querySelector(`input[name=sep][value="${separador()}"]`).checked = true;
-  $('m-finanzas').checked = finanzas;
   renderCatalogos();
   if (navigator.storage && navigator.storage.persisted) navigator.storage.persisted().then(p => { $('m-persist').textContent = p ? 'Sí' : 'No (exporta seguido)'; });
   else $('m-persist').textContent = 'No disponible (exporta seguido)';
 }
 document.querySelectorAll('input[name=sep]').forEach(el => el.onchange = () => guardar(K.separador, el.value));
-$('m-finanzas').onchange = e => { if (guardar(K.finanzas, e.target.checked)) finanzas = e.target.checked; render(); };
 $('m-borrar-todo').onclick = async () => {
   if (!registros.length && !ordenes.length) { await avisar('No hay órdenes ni registros en esta tablet.', 'Nada que borrar'); return; }
   const pend = sinExportar();

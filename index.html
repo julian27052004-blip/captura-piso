@@ -315,7 +315,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             <h2>Producciones</h2>
             <p id="corrida-info" class="ayuda" style="margin-top:0"></p>
             <button type="button" id="btn-corrida" class="btn">+ Nueva producción</button>
-            <p class="ayuda" style="margin:12px 0 0">Cuando un turno o día termina su producción (hasta «PT listo»), la siguiente empieza otra vez en «Inicio de producción», con su propia entrega de MP y su lote. Las salidas van aparte, una por embarque.</p>
+            <p class="ayuda" style="margin:12px 0 0">Cuando un turno o día termina su producción (hasta su «Salida»), la siguiente empieza otra vez en «Inicio de producción», con su propia entrega de MP y su lote. Las salidas van aparte, una por embarque.</p>
           </div>
 
           <div id="paros-orden" class="tarjeta" style="margin-top:var(--gap)" hidden>
@@ -437,7 +437,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -794,6 +794,8 @@ const salidasDe = orden => etapasVig(orden, 'Salida');
 const fabricado = orden => suma(etapasVig(orden, 'Fin de producción'), 'cant_fabricada');
 const salido = orden => suma(salidasDe(orden), 'cant_sale');
 const terminada = o => salidasDe(o.orden).length > 0 && (!o.cant_pedida || salido(o.orden) >= o.cant_pedida);
+// Una producción termina con su salida: la siguiente no empieza hasta que haya una Salida desde su PT listo (aunque queden tarimas esperando)
+const produccionCerrada = o => { const pt = etapasDe(o.orden, corridaDe(o))[5]; return !!pt && salidasDe(o.orden).some(x => x.fecha_hora_evento >= pt.fecha_hora_evento); };
 const sino = v => v === undefined ? '' : v ? 'sí' : 'no';
 // OTIF a la salida de planta: a tiempo si sale en o antes de la fecha comprometida; completo si lo entregado acumulado cubre lo pedido
 function otifDe(o, fechaHora, acum){
@@ -1264,11 +1266,12 @@ function renderOrden(){
     if (siguiente >= 0) {
       const btn = document.createElement('button'); btn.type = 'button';
       btn.className = 'btn ' + (bloqueadaDeNoche(ETAPAS[siguiente]) ? '' : 'prim');
-      const faltan = siguiente > 0 ? pendientes(x).length : 0;
-      btn.textContent = faltan ? `Faltan ${cuenta(faltan, 'insumo')}` : ETAPAS[siguiente] + (siguiente >= 3 && siguiente <= 5 && corridaDe(x) > 1 ? ` (${corridaDe(x)})` : '');
-      btn.setAttribute('aria-label', `Registrar ${ETAPAS[siguiente]} de ${x.orden}`);
+      const faltan = siguiente > 0 ? pendientes(x).length : 0, nueva = siguiente === 6 && produccionCerrada(x); // ya salió: sigue otra producción
+      btn.textContent = faltan ? `Faltan ${cuenta(faltan, 'insumo')}` : nueva ? `+ Nueva producción (${corridaDe(x) + 1})`
+        : ETAPAS[siguiente] + (siguiente >= 3 && siguiente <= 5 && corridaDe(x) > 1 ? ` (${corridaDe(x)})` : '');
+      btn.setAttribute('aria-label', `${nueva ? 'Empezar otra producción' : `Registrar ${ETAPAS[siguiente]}`} de ${x.orden}`);
       btn.disabled = Date.now() < pausaHasta;
-      btn.onclick = () => { if (x.orden !== ordenActual) elegirOrden(x.orden); tocarEtapa(x, siguiente); };
+      btn.onclick = () => { if (x.orden !== ordenActual) elegirOrden(x.orden); nueva ? $('btn-corrida').click() : tocarEtapa(x, siguiente); };
       fila.append(btn);
     }
     return fila;
@@ -1288,9 +1291,10 @@ function renderOrden(){
   $('corrida-orden').hidden = !o;
   if (o) {
     const k = corridaDe(o);
-    $('corrida-info').textContent = `Producción ${k} ${est[5] ? 'terminada' : 'en curso'} · fabricado ${fabricado(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} · salió ${salido(o.orden)} unidades`;
+    const cerrada = produccionCerrada(o);
+    $('corrida-info').textContent = `Producción ${k} ${cerrada ? 'terminada' : est[5] ? 'en PT: falta su «Salida»' : 'en curso'} · fabricado ${fabricado(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} · salió ${salido(o.orden)} unidades`;
     $('btn-corrida').textContent = `+ Nueva producción (${k + 1})`;
-    $('btn-corrida').disabled = !est[5];
+    $('btn-corrida').disabled = !cerrada;
   }
   const pend = o && lista[0] ? pendientes(o).length : 0;
   $('etapas').classList.toggle('pausa', Date.now() < pausaHasta);
@@ -1470,7 +1474,8 @@ $('btn-corrida').onclick = async () => {
   const o = orden();
   if (!o || Date.now() < pausaHasta) return;
   const k = corridaDe(o), { est, lista } = estadoOrden(o);
-  if (!est[5]) { await avisar(`Primero termina la producción ${k} hasta «PT listo».`, 'Producción en curso'); return; }
+  if (!est[5]) { await avisar(`Primero termina la producción ${k} hasta «PT listo» y su «Salida».`, 'Producción en curso'); return; }
+  if (!produccionCerrada(o)) { await avisar(`Falta la «Salida» de la producción ${k}. Regístrala (si algo se queda, marca las tarimas esperando) y luego empieza la ${k + 1}.`, 'Falta la salida'); return; }
   if (await preguntar(`Producción ${k + 1}`, `La producción ${k} queda cerrada${lista[4] && lista[4].lote ? ` (lote ${lista[4].lote})` : ''}. La ${k + 1} empieza en «Inicio de producción» con su propia entrega de MP y su lote.`,
     [{ v: 'si', t: `Empezar producción ${k + 1}`, c: 'prim' }, { v: null, t: 'Cancelar' }]) !== 'si') return;
   if (!guardarTodo(() => { o.corrida = k + 1; o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < 3); })) return;

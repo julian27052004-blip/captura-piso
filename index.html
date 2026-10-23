@@ -19,7 +19,7 @@
   --bg:#EFEFEC; --card:#FFFFFF; --fg:#0A0A0A; --muted:#55554F; --border:#D9D9D3; --campo:#74746D;
   --punto:rgba(10,10,10,.10); --raya:rgba(10,10,10,.07);
   --primary:#0A0A0A; --on-primary:#FFFFFF;
-  --senal:#D4FF3A; --on-senal:#0A0A0A; --tinta:#0A0A0A; --papel:#F2F2EE;
+  --senal:#B8F0C9; --on-senal:#0A0A0A; --tinta:#0A0A0A; --papel:#F2F2EE;
   --accent:#12803F; --on-accent:#FFFFFF; --accent-soft:#E4F4E9; --accent-fg:#0D4F28;
   --warn-bg:#FFE9B8; --warn-raya:#FFDD94; --warn-fg:#5C3400; --warn-border:#B06A00;
   --danger:#C8161E; --on-danger:#FFFFFF; --ring:#1F4FE0;
@@ -143,10 +143,10 @@ dl.datos dt{color:var(--muted)} dl.datos dd{margin:0;font-weight:600;word-break:
 .etapa .txt span{font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
 .etapa:active{transform:scale(.99)}
 /* Siguiente: lo único en lima; lo más grande y con flecha */
-.etapa.siguiente{min-height:92px;border-color:var(--tinta);background:var(--senal);color:var(--on-senal);padding-right:60px}
-.etapa.siguiente .num{background:var(--tinta);color:var(--senal);border-color:var(--tinta)}
+.etapa.siguiente{min-height:92px;border-color:var(--primary);background:var(--primary);color:var(--on-primary);padding-right:60px} /* la siguiente resalta por contraste, sin color chillón */
+.etapa.siguiente .num{background:var(--on-primary);color:var(--primary);border-color:var(--on-primary)}
 .etapa.siguiente .txt b{font-size:22px}
-.etapa.siguiente .txt span{color:#2B2F12}
+.etapa.siguiente .txt span{color:inherit;opacity:.8}
 .etapa.siguiente::after{content:"";position:absolute;right:20px;top:50%;width:28px;height:28px;margin-top:-14px;background:currentColor;
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat;
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E") center/contain no-repeat}
@@ -181,7 +181,16 @@ ol.tiempo li:last-child{border-left-color:transparent;padding-bottom:0}
 ol.tiempo li::before{content:"";position:absolute;left:-9px;top:5px;width:16px;height:16px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--card)}
 ol.tiempo li.vacia::before{background:var(--card);border:2px dashed var(--campo);width:12px;height:12px;left:-8px}
 ol.tiempo li.vacia{color:var(--muted)}
-ol.tiempo .min{display:inline-block;margin-top:4px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font:700 14px/1.5 var(--mono)}
+ol.tiempo .min{display:inline-block;margin:6px 0 2px;padding:4px 14px;border-radius:999px;background:var(--fg);color:var(--card);border:0;font:800 16px/1.4 var(--mono)} /* el tiempo entre etapas es lo que se busca: que salte a la vista */
+ol.tiempo li[data-tipo="paro"]::before{background:var(--danger)}
+ol.tiempo li[data-tipo="merma"]::before{background:var(--warn-border)}
+#tiempos-resumen .cifra b{font-size:26px;letter-spacing:-.02em}
+ol.tiempo li.dia{border-left-color:transparent;padding:6px 0 10px;margin-left:0;font:700 14px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+ol.tiempo li.dia::before{display:none}
+#barra .estado{flex-basis:200px}
+#barra .btn{min-height:48px;padding:0 14px;font-size:16px} /* tres botones caben en una línea en tablet vertical */
+#barra button.btn.azul{background:#BFE3FF;color:#0A2540;border-color:#BFE3FF}
+#barra button.btn.naranja{background:#FF9F43;color:#2A1400;border-color:#FF9F43}
 .etiqueta{display:inline-block;padding:1px 10px;border-radius:999px;font:700 13px/1.5 var(--mono);background:transparent;color:var(--warn-fg);border:2px solid var(--warn-border);margin-left:6px}
 .etiqueta.doc{color:var(--fg);border-color:var(--campo)}
 .tablero-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 0;border-top:1px solid var(--border)}
@@ -310,7 +319,6 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
             </div>
             <div id="orden-resumen" class="orden-resumen"></div>
             <div id="acciones-orden" class="acciones-orden" hidden>
-              <button type="button" id="btn-merma-orden" class="btn chico">+ Merma</button>
               <button type="button" id="btn-editar" class="btn chico">Editar orden</button>
               <button type="button" id="btn-anular-orden" class="btn chico">Anular orden</button>
               <button type="button" id="btn-borrar-orden" class="btn chico borde-peligro">Borrar orden</button>
@@ -424,9 +432,32 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
         <div id="cierre-resumen" class="ayuda"></div>
       </div>
       <div class="tarjeta">
+        <h2>Factor piezas-peso</h2>
+        <p class="ayuda" style="margin-top:0">Del producto de la orden activa: kg de MP en UNA pieza según la fórmula (ej. 0.37 para un frasco de 370 g; no el total de la orden ni el peso del envase). El cierre lo multiplica por el PT conforme en unidades. merma_pct solo se calcula con factor confirmado con planta.</p>
+        <div id="cat-factores"></div>
+        <button type="button" id="cat-nuevo-factor" class="btn chico" style="margin-top:8px">+ Nuevo factor</button>
+      </div>
+      <div class="tarjeta">
         <h2>Mermas de la orden</h2>
         <p class="ayuda" style="margin:0 0 12px">Toca una merma para anularla.</p>
         <div id="lista-merma"></div>
+      </div>
+    </section>
+
+    <!-- Tiempos: la línea de tiempo completa de una orden, para revisar con calma -->
+    <section id="v-tiempos" hidden>
+      <div class="tarjeta">
+        <label for="sel-orden-t">Orden</label>
+        <select id="sel-orden-t"></select>
+        <div id="tiempos-resumen" class="cifras" style="margin:14px 0 0"></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Producciones</h2>
+        <div id="tiempos-corridas"></div>
+      </div>
+      <div class="tarjeta">
+        <h2>Todo lo que pasó</h2>
+        <ol id="tiempos-lista" class="tiempo"></ol>
       </div>
     </section>
 
@@ -477,10 +508,6 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
         <h3 style="margin-top:16px">Equipos</h3><div id="cat-equipos"></div>
         <button type="button" id="cat-nuevo-equipo" class="btn chico" style="margin-top:8px">+ Nuevo equipo</button>
         <h3 style="margin-top:16px">Causas de paro</h3><div id="cat-causas_paro"></div>
-        <h3 style="margin-top:16px">Factores piezas-peso</h3>
-        <p class="ayuda">Por producto: kg de MP en UNA pieza según la fórmula (ej. 0.37 para un frasco de 370 g; no el total de la orden ni el peso del envase). El cierre lo multiplica por el PT conforme en unidades. merma_pct solo se calcula con factor confirmado con planta.</p>
-        <div id="cat-factores"></div>
-        <button type="button" id="cat-nuevo-factor" class="btn chico" style="margin-top:8px">+ Nuevo factor</button>
       </div>
       <div class="tarjeta">
         <h2>Empezar de cero</h2>
@@ -495,6 +522,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
   <nav id="nav" aria-label="Secciones">
     <button type="button" data-v="orden"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M9 11h6M9 15h6"/></svg>Orden</button>
     <button type="button" data-v="merma"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 21h10M5 7h14M5 7l-3 6a3 3 0 006 0zM19 7l-3 6a3 3 0 006 0z"/></svg>Merma</button>
+    <button type="button" data-v="tiempos"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Tiempos</button>
     <button type="button" data-v="exportar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar<span id="badge-pend" class="badge" hidden></span></button>
     <button type="button" data-v="mas"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Más</button>
   </nav>
@@ -509,7 +537,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.3';
+const VERSION = '0.5.4';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -834,9 +862,12 @@ function renderBarra(){
     t.textContent = (sesion.pausa ? `En pausa desde ${hora(sesion.pausa)} · ${obs} min observados` : `Observando desde ${hora(sesion.inicio)} · ${obs} min`) + (sesion.turno ? ` · turno ${sesion.turno}` : '');
     btn.className = 'btn'; btn.textContent = 'Terminar observación'; btn.onclick = terminarSesion;
     const pb = document.createElement('button'); pb.type = 'button';
-    pb.className = 'btn' + (sesion.pausa ? ' ok' : ''); pb.textContent = sesion.pausa ? 'Reanudar' : 'Pausar';
+    pb.className = 'btn azul'; pb.textContent = sesion.pausa ? 'Reanudar' : 'Pausar';
     pb.onclick = () => sesion.pausa ? reanudarSesion() : pausarSesion();
-    est.append(t, s); b.append(est, pb, btn);
+    btn.className = 'btn naranja';
+    const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = '+ Merma';
+    mb.onclick = async () => orden() ? registrarMerma() : avisar('Elige primero la orden en la pestaña Orden.', 'Sin orden'); // atajo sin cambiar de pestaña
+    est.append(t, s); b.append(est, mb, pb, btn);
     return;
   } else {
     t.textContent = 'Sin observación activa';
@@ -914,7 +945,7 @@ function valoresUsados(campo){ return [...new Set(ordenes.map(o => o[campo]).fil
 function llenarDatalist(id, campo){ $(id).replaceChildren(...valoresUsados(campo).map(v => { const o = document.createElement('option'); o.value = v; return o; })); }
 function elegirOrden(v){ ordenActual = v; guardar(K.ordenActual, v); render(); }
 
-$('sel-orden').onchange = $('sel-orden-m').onchange = e => elegirOrden(e.target.value);
+$('sel-orden').onchange = $('sel-orden-m').onchange = $('sel-orden-t').onchange = e => elegirOrden(e.target.value);
 let editando = null; // orden que se está editando; null = orden nueva
 function abrirFormOrden(o){
   editando = o ? o.orden : null;
@@ -935,7 +966,6 @@ $('btn-nueva').onclick = async () => {
   abrirFormOC();
 };
 $('btn-editar').onclick = () => abrirFormOrden(orden());
-$('btn-merma-orden').onclick = () => registrarMerma(); // atajo: sin ir a la pestaña Merma
 $('no-cancelar').onclick = () => { $('form-orden').hidden = true; editando = null; };
 $('no-mas-insumo').onclick = () => filaInsumo($('no-insumos')).querySelector('input').focus();
 $('form-orden').onsubmit = async e => {
@@ -1062,7 +1092,8 @@ function reiniciarOrigen(){
 function estadoOrden(o){
   const lista = etapasDe(o.orden, corridaDe(o)), saltadas = o.saltadas || [];
   const est = ETAPAS.map((e, i) => i === 6 ? null : lista[i] ? 'hecha' : saltadas.includes(e) ? 'saltada' : null); // Salida se repite: no cierra la secuencia
-  if (!lista[1] && lista[0] && lista[0].consolidada === 'sí') est[1] = 'noaplica';
+  const es = entradasDe(o.orden);
+  if (!lista[1] && lista[0] && es.every(e => e.consolidada === 'sí')) est[1] = 'noaplica'; // con un solo material sin consolidar, hay que liberar
   const ultima = est.reduce((u, x, i) => x ? i : u, -1);
   return { lista, est, ultima, siguiente: ultima + 1 < ETAPAS.length ? ultima + 1 : -1 };
 }
@@ -1115,7 +1146,7 @@ async function tocarEtapa(o, i){
     return registrarEtapa(o, i, lista);
   }
   if (est[i] === 'noaplica') {
-    await avisar('La MP vino consolidada, así que MP liberada no aplica en esta orden.\nSi eso está mal, toca «MP recibida» y rehazla.', 'No aplica');
+    await avisar('Toda la MP vino consolidada, así que MP liberada no aplica en esta orden.\nSi eso está mal, toca «MP recibida» y rehazla.', 'No aplica');
     return;
   }
   if (bloqueadaDeNoche(ETAPAS[i])) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
@@ -1215,9 +1246,10 @@ async function datosEtapa(o, etapa, lista){
   if (etapa === 'PT listo') return pedirDatos(titulo, '', [{ k: 'tarimas_pt', label: 'Tarimas que pasan a PT desde Fin de producción', tipo: 'entero' }]);
   if (etapa === 'Salida') {
     // Cada salida es un embarque: primero las tarimas que esperan, luego lo que sale. Las unidades alimentan el OTIF.
-    const enPT = suma(etapasVig(o.orden, 'PT listo'), 'tarimas_pt') - suma(salidasDe(o.orden), 'tarimas_salida');
+    // Tarimas de producción que siguen en PT (las que esperaban no salieron de un PT listo registrado)
+    const enPT = Math.max(0, suma(etapasVig(o.orden, 'PT listo'), 'tarimas_pt') - salidasDe(o.orden).reduce((t, x) => t + Math.max(0, (x.tarimas_salida || 0) - (x.tarimas_esperando || 0)), 0));
     const fab = fabricado(o.orden), sal = salido(o.orden);
-    const esp = await preguntar('¿Hay tarimas esperando?', `En PT hay ${cuenta(Math.max(enPT, 0), 'tarima')} sin salir.`,
+    const esp = await preguntar('¿Hay tarimas esperando?', `De producción hay ${cuenta(enPT, 'tarima')} en PT. Las que estaban esperando salen junto con ellas.`,
       [{ v: 'si', t: 'Sí', c: 'prim' }, { v: 'no', t: 'No', c: 'prim' }, { v: null, t: 'Cancelar' }]);
     if (!esp) return null;
     let espera = 0;
@@ -1226,14 +1258,14 @@ async function datosEtapa(o, etapa, lista){
       if (!e) return null;
       espera = e.tarimas_esperando;
     }
-    const campos = [{ k: 'tarimas_salida', label: 'Tarimas que salen desde PT', tipo: 'entero' },
+    const campos = [{ k: 'tarimas_salida', label: 'Tarimas que salen desde PT', tipo: 'entero', valor: enPT + espera || '' },
       { k: 'destino', label: 'Destino del PT', tipo: 'opc', opciones: LUGARES },
       { k: 'cant_sale', label: 'Unidades que salen', tipo: 'entero', valor: fab > sal ? fab - sal : '' }];
     for (;;) {
-      const d = await pedirDatos(titulo, `Fabricado: ${fab} · ya salió: ${sal}${o.cant_pedida ? ` · pedido: ${o.cant_pedida}` : ''} unidades.`, campos);
+      const d = await pedirDatos(titulo, `Tarimas: ${enPT} de PT listo + ${espera} esperando = ${enPT + espera}.\nUnidades: fabricado ${fab} · ya salió ${sal}${o.cant_pedida ? ` · pedido ${o.cant_pedida}` : ''}.`, campos);
       if (!d) return null;
       campos.forEach(c => { c.valor = d[c.k]; });
-      if (d.tarimas_salida > Math.max(enPT, 0) && !(await revisar(`Salen ${d.tarimas_salida} tarimas, pero en PT hay ${Math.max(enPT, 0)}.`))) continue;
+      if (d.tarimas_salida > enPT + espera && !(await revisar(`Salen ${d.tarimas_salida} tarimas, pero hay ${enPT} de PT listo y ${espera} esperando (${enPT + espera}).`))) continue;
       if (d.cant_sale > fab - sal && !(await revisar(`Salen ${d.cant_sale} unidades, pero de lo fabricado quedan ${Math.max(fab - sal, 0)}.`))) continue;
       return Object.assign(d, { tarimas_esperando: espera });
     }
@@ -1301,12 +1333,14 @@ async function rehacerDesde(o, i, lista){
     `Registrada a las ${hora(r.fecha_hora_evento)} (${origen}) por ${r.capturo}.\n\n` +
     (despues.length ? `Rehacer anula esta etapa y las siguientes: ${lista3(despues)}.` : 'Rehacer anula esta etapa.') +
     ' Quedan en el CSV como anuladas y vuelves a registrar desde aquí.' +
-    (afectadas.some(x => x.etapa === 'Inicio de producción') ? '\nTambién se anulan la entrega y las devoluciones de esta producción.' : ''),
+    (afectadas.some(x => x.etapa === 'Inicio de producción') ? '\nTambién se anulan la entrega y las devoluciones de esta producción.' : '') +
+    (i === 0 && delTipo('entrada', o.orden).length ? '\nTambién se anulan las demás entradas de MP: vuelves a registrar todos los insumos.' : ''),
     [{ v: null, t: 'Dejarla así', c: 'prim' }, { v: 'si', t: 'Rehacer desde aquí', c: 'borde-peligro' }]) !== 'si') return;
   const ahora = isoLocal(new Date());
   if (!guardarTodo(() => {
     const ids = new Set(afectadas.map(x => x.id)), conInicio = afectadas.some(x => x.etapa === 'Inicio de producción');
-    registros.filter(x => x.anulado === 'no' && (ids.has(x.id) || ids.has(x.etapa_ref) || (conInicio && x.tipo === 'devolucion' && x.orden === o.orden && deCorrida(x, corridaDe(o)))))
+    registros.filter(x => x.anulado === 'no' && (ids.has(x.id) || ids.has(x.etapa_ref) || (conInicio && x.tipo === 'devolucion' && x.orden === o.orden && deCorrida(x, corridaDe(o)))
+      || (i === 0 && x.tipo === 'entrada' && x.orden === o.orden)))
       .forEach(x => { x.anulado = 'sí'; x.nota = (x.nota ? x.nota + ' | ' : '') + `rehecha por ${usuario.nombre} ${ahora}`; });
     o.saltadas = (o.saltadas || []).filter(e => ETAPAS.indexOf(e) < i);
     if (afectadas.some(x => x.etapa === 'Fin de producción')) ligadosAlLote(o, corridaDe(o)).forEach(x => { delete x.lote; x.editado = ahora; });
@@ -1327,7 +1361,7 @@ function resumenDatos(r){
     'Explosión de materiales': hijosDe(r).length && `Receta: ${hijosDe(r).map(x => `${x.material_nombre} ${x.cant_requerida}${x.unidad ? ' ' + x.unidad : ''}`).join(', ')}`,
     'Inicio de producción': r.cant_utilizada ? `${r.cant_utilizada} ${r.unidad} utilizados` : hijosDe(r).length && `Entregado: ${hijosDe(r).map(x => `${nombreMat(x)} ${x.cant_a_produccion}`).join(', ')}`,
     'Fin de producción': r.lote && `Lote ${r.lote} · ${r.cant_fabricada} ${r.unidad}${r.observaciones ? ` · ${r.observaciones}` : ''}`,
-    'Salida': r.tarimas_salida && `${r.cant_sale ? `${r.cant_sale} unidades · ` : ''}${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}` + (r.tarimas_esperando ? ` · ${cuenta(r.tarimas_esperando, 'tarima')} esperando` : r.tarimas_esperando === 0 ? ' · sin tarimas esperando' : ''),
+    'Salida': r.tarimas_salida && `${r.cant_sale ? `${r.cant_sale} unidades · ` : ''}${cuenta(r.tarimas_salida, 'tarima')} hacia ${r.destino}` + (r.tarimas_esperando ? ` · incluye ${cuenta(r.tarimas_esperando, 'tarima')} que esperaban` : r.tarimas_esperando === 0 ? ' · sin tarimas esperando' : ''),
     'PT listo': r.tarimas_pt && `${cuenta(r.tarimas_pt, 'tarima')} a PT`,
   }[r.etapa] || '';
 }
@@ -1419,7 +1453,7 @@ function renderOrden(){
     s.textContent = i === 6 && nSal ? `${cuenta(nSal, 'salida')} · ${salido(o.orden)}${o.cant_pedida ? ` de ${o.cant_pedida}` : ''} unidades · toca para otra salida` : {
       hecha: lista[i] && `${hora(lista[i].fecha_hora_evento)} · toca para rehacer`,
       incompleta: `Faltan ${cuenta(pend, 'insumo')} por llegar · toca para registrarlos`,
-      noaplica: 'No aplica · la MP vino consolidada',
+      noaplica: 'No aplica · toda la MP vino consolidada',
       siguiente: bloqueadaDeNoche(nombre) ? 'Siguiente · no se registra en turno noche'
         : o && i > 0 && pendientes(o).length ? `Faltan ${cuenta(pendientes(o).length, 'insumo')} de la OC en «MP recibida»` : 'Siguiente · toca para registrar la hora',
       faltante: `${est[i] === 'saltada' ? 'Saltada' : 'Sin dato'} · solo con Documento o Testimonio`,
@@ -1799,6 +1833,62 @@ function renderMerma(){
   $('cierre-resumen').textContent = !o ? '' : c ? textoBalance(c) : `Todavía no se cierra esta orden. Mermas de MP medidas en kg hasta ahora: ${kgEventosMP(o.orden)} kg.`;
 }
 $('btn-merma').onclick = registrarMerma;
+
+// ---------- Tiempos: la línea de tiempo completa de la orden ----------
+const fmtMin = m => m == null || isNaN(m) ? '—' : m < 60 ? `${redondo(m, 1)} min` : `${Math.floor(m / 60)} h ${Math.round(m % 60)} min`;
+const NOMBRE_TIPO = { entrada: 'Entrada de MP', devolucion: 'Devolución a almacén', paro: 'Paro', cierre: 'Cierre de merma' };
+function renderTiempos(){
+  llenarSelectOrdenes($('sel-orden-t'));
+  const o = orden(), p = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
+  if (!o) { $('tiempos-resumen').replaceChildren(); $('tiempos-corridas').replaceChildren(p('Elige una orden para ver su línea de tiempo completa.')); $('tiempos-lista').replaceChildren(); return; }
+  const mp = etapasVig(o.orden, 'MP recibida')[0], ss = salidasDe(o.orden), ult = ss[ss.length - 1];
+  const paros = registros.filter(r => r.tipo === 'paro' && r.anulado === 'no' && r.orden === o.orden);
+  const otif = calculados(registros.find(r => r.tipo === 'oc' && r.anulado === 'no' && r.orden === o.orden) || {}, new Map()).otif;
+  const cifra = (v, t) => { const d = document.createElement('div'); d.className = 'cifra'; const b = document.createElement('b'); b.textContent = v;
+    const s = document.createElement('span'); s.textContent = t; d.append(b, s); return d; };
+  const completa = terminada(o);
+  $('tiempos-resumen').replaceChildren(
+    cifra(mp ? fmtMin(minutosEntre(mp.fecha_hora_evento, completa ? ult.fecha_hora_evento : isoLocal(new Date()))) : '—', completa ? 'lead time (MP recibida → última salida)' : 'desde MP recibida (en curso)'),
+    cifra(`${fabricado(o.orden)}${o.cant_pedida ? ` / ${o.cant_pedida}` : ''}`, 'unidades fabricadas'),
+    cifra(String(salido(o.orden)), 'unidades que salieron'),
+    cifra(otif ? otif.toUpperCase() : '—', 'OTIF'),
+    cifra(`${paros.length} · ${fmtMin(paros.reduce((t, x) => t + (x.fin ? minutosEntre(x.inicio, x.fin) : 0), 0))}`, 'paros'));
+  // Una fila por producción: Inicio → Fin → PT listo
+  const filas = [];
+  for (let k = 1; k <= corridaDe(o); k++) {
+    const l = etapasDe(o.orden, k), [ini, fin, pt] = [l[3], l[4], l[5]];
+    if (!ini && !fin && !pt) continue;
+    filas.push(filaCatalogo(`Producción ${k}${fin && fin.lote ? ` · lote ${fin.lote} · ${fin.cant_fabricada} unidades` : ''}`,
+      [ini && `Inicio ${hora(ini.fecha_hora_evento)}`, fin && `Fin ${hora(fin.fecha_hora_evento)}${ini ? ` (${fmtMin(minutosEntre(ini.fecha_hora_evento, fin.fecha_hora_evento))})` : ''}`,
+        pt && `PT listo ${hora(pt.fecha_hora_evento)}${fin ? ` (${fmtMin(minutosEntre(fin.fecha_hora_evento, pt.fecha_hora_evento))})` : ''}`,
+        ini && pt && `total ${fmtMin(minutosEntre(ini.fecha_hora_evento, pt.fecha_hora_evento))}`].filter(Boolean).join(' · '), true, []));
+  }
+  $('tiempos-corridas').replaceChildren(...(filas.length ? filas : [p('Todavía no empieza ninguna producción.')]));
+  // Todo en orden de hora, con un separador por día
+  const evs = registros.filter(r => r.orden === o.orden && r.anulado === 'no' && !['receta', 'entrega', 'oc', 'venta'].includes(r.tipo))
+    .sort((a, b) => (a.fecha_hora_evento + a.fecha_hora_captura).localeCompare(b.fecha_hora_evento + b.fecha_hora_captura));
+  const cache = new Map(), items = []; let dia = '';
+  for (const r of evs) {
+    const f = r.fecha_hora_evento.slice(0, 10);
+    if (f !== dia) { dia = f; const li = document.createElement('li'); li.className = 'dia'; li.textContent = new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }); items.push(li); }
+    const li = document.createElement('li'); li.dataset.tipo = r.tipo; // sin className: «etapa» chocaría con el estilo de las tarjetas
+    const t = document.createElement('div'), b = document.createElement('b');
+    b.textContent = r.tipo === 'etapa' ? r.etapa + (r.corrida && corridaDe(o) > 1 ? ` (producción ${r.corrida})` : '') : r.tipo === 'merma' ? `Merma de ${r.material}` : NOMBRE_TIPO[r.tipo] || r.tipo;
+    t.append(b, ` · ${r.fecha_hora_evento.slice(11, 16)}`);
+    const et = etiquetaOrigen(r.origen); if (et) t.append(et);
+    li.append(t);
+    const c = calculados(r, cache);
+    const chip = r.tipo === 'paro' ? (c.minutos !== undefined ? `${c.minutos} min parado${c.min_respuesta !== undefined ? ` · respuesta ${c.min_respuesta}` : ''}${c.min_reparacion !== undefined ? ` · reparación ${c.min_reparacion}` : ''}` : 'paro abierto')
+      : c.minutos !== undefined ? (c.minutos >= 0 ? `+${fmtMin(c.minutos)} desde ${c.minutos_desde}` : `${fmtMin(-c.minutos)} ANTES de ${c.minutos_desde}: revisar`) : '';
+    if (chip) { const m = document.createElement('span'); m.className = 'min'; m.textContent = chip; li.append(m); }
+    const det = r.tipo === 'etapa' ? resumenDatos(r) : r.tipo === 'entrada' ? textoEntrada(r) : r.tipo === 'merma' ? resumenMerma(r).replace(/^[^·]*· /, '')
+      : r.tipo === 'devolucion' ? `${nombreMat(r)}: ${r.cant_devuelta}${r.lote ? ` · lote ${r.lote}` : ''}` : r.tipo === 'paro' ? `${r.equipo} · ${r.causa}` : r.tipo === 'cierre' ? textoBalance(r).split('\n')[0] : '';
+    const txt = [det, r.documento && `Documento: ${r.documento}`, `Capturó: ${r.capturo}`].filter(Boolean).join(' · ');
+    const d = document.createElement('div'); d.className = 'ayuda'; d.textContent = txt; li.append(d);
+    items.push(li);
+  }
+  $('tiempos-lista').replaceChildren(...(items.length ? items : [Object.assign(document.createElement('li'), { className: 'vacia', textContent: 'Sin registros en esta orden.' })]));
+}
 $('btn-cierre').onclick = cerrarOrden;
 
 // ---------- Catálogos (en Más) ----------
@@ -1810,7 +1900,7 @@ function filaCatalogo(titulo, detalle, activo, botones){
   f.append(q, ...botones.map(([t, fn]) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn chico'; x.textContent = t; x.onclick = fn; return x; }));
   return f;
 }
-const alternar = x => { x.activo = !x.activo; if (!guardar(K.catalogos, catalogos)) x.activo = !x.activo; renderMas(); };
+const alternar = x => { x.activo = !x.activo; if (!guardar(K.catalogos, catalogos)) x.activo = !x.activo; render(); };
 function renderCatalogos(){
   const vacio = t => Object.assign(document.createElement('p'), { className: 'ayuda', textContent: t });
   for (const [lista, cont, vacia] of [['causas', 'cat-causas', 'Todavía no hay causas: se agregan desde la ventana de merma.'],
@@ -1818,13 +1908,22 @@ function renderCatalogos(){
     ['causas_paro', 'cat-causas_paro', 'Todavía no hay causas de paro: se agregan al registrar un paro.']])
     $(cont).replaceChildren(...(catalogos[lista].length ? catalogos[lista].map(x => filaCatalogo(x.nombre, x.activo ? '' : 'Desactivada', x.activo,
       [[x.activo ? 'Quitar' : 'Reactivar', () => alternar(x)]])) : [vacio(vacia)]));
-  $('cat-factores').replaceChildren(...(catalogos.factores.length ? catalogos.factores.map(f => filaCatalogo(f.producto,
+}
+// En Merma: primero el factor del producto de la orden activa
+function renderFactores(){
+  const o = orden(), es = f => o && normal(f.producto) === normal(o.producto || '');
+  const fs = catalogos.factores.slice().sort((a, b) => es(b) - es(a));
+  $('cat-factores').replaceChildren(...(fs.length ? fs.map(f => filaCatalogo(f.producto + (es(f) ? ' · orden activa' : ''),
     `${f.kg_pieza} kg de MP por pieza · ${f.estado}${f.activo ? '' : ' · desactivado'}`, f.activo,
-    [['Editar', () => editarFactor(f)], [f.activo ? 'Quitar' : 'Reactivar', () => alternar(f)]])) : [vacio('Sin factores: sin ellos no se calcula la merma en kg del cierre.')]));
+    [['Editar', () => editarFactor(f)], [f.activo ? 'Quitar' : 'Reactivar', () => alternar(f)]]))
+    : [Object.assign(document.createElement('p'), { className: 'ayuda', textContent: 'Sin factores: sin ellos no se calcula la merma en kg del cierre.' })]));
+  $('cat-nuevo-factor').disabled = !o || catalogos.factores.some(f => f.activo && es(f)); // uno por producto
 }
 async function editarFactor(f){
+  const o = orden(), producto = f ? f.producto : o && o.producto; // el factor nuevo es del producto de la OC activa
+  if (!producto) { await avisar('Elige primero la orden: el factor es del producto de esa OC.', 'Sin orden'); return; }
   const d = await pedirDatos(f ? 'Editar factor piezas-peso' : 'Nuevo factor piezas-peso', 'Kg de MP por pieza según la fórmula del producto, no el peso del envase (hay envase y, en productos cocidos, evaporación).', [
-    { k: 'producto', label: 'Producto', tipo: 'texto', sugerencias: [...new Set(ordenes.map(o => o.producto).filter(Boolean))], valor: f && f.producto },
+    { k: 'producto', label: 'Producto (de la OC)', tipo: 'opc', opciones: [producto], valor: producto },
     { k: 'kg_pieza', label: 'Kg de MP en UNA pieza (ej. 0.37 para un frasco de 370 g)', tipo: 'num', valor: f && f.kg_pieza },
     { k: 'estado', label: 'Estado del factor', tipo: 'opc', opciones: ESTADOS_FACTOR, valor: f ? f.estado : 'Por confirmar' }]);
   if (!d) return;
@@ -1833,7 +1932,7 @@ async function editarFactor(f){
   const antes = JSON.stringify(catalogos);
   if (f) Object.assign(f, d); else catalogos.factores.push(Object.assign(d, { activo: true }));
   if (!guardar(K.catalogos, catalogos)) catalogos = JSON.parse(antes);
-  renderMas();
+  render();
 }
 $('cat-nuevo-factor').onclick = () => editarFactor(null);
 $('cat-nuevo-equipo').onclick = async () => {
@@ -2001,7 +2100,7 @@ function mostrar(v){ vista = v; render(); document.querySelector('main').scrollT
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => mostrar(b.dataset.v));
 function render(){
   if (!usuario) vista = 'inicio';
-  ['inicio', 'orden', 'merma', 'exportar', 'mas'].forEach(v => { $('v-' + v).hidden = v !== vista; });
+  ['inicio', 'orden', 'merma', 'tiempos', 'exportar', 'mas'].forEach(v => { $('v-' + v).hidden = v !== vista; });
   $('slot-origen-' + (vista === 'merma' ? 'merma' : 'orden')).append($('tarjeta-origen')); // una sola tarjeta de origen para Orden y Merma
   $('nav').hidden = vista === 'inicio';
   $('app').classList.toggle('sin-nav', vista === 'inicio');
@@ -2011,7 +2110,8 @@ function render(){
   renderBarra();
   renderExpo();
   if (vista === 'orden') renderOrden();
-  if (vista === 'merma') renderMerma();
+  if (vista === 'merma') { renderMerma(); renderFactores(); }
+  if (vista === 'tiempos') renderTiempos();
   if (vista === 'exportar') renderExportar();
   if (vista === 'mas') renderMas();
 }

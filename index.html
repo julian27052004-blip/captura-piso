@@ -30,23 +30,7 @@
   --flecha:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230753EB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
   --radius:12px; --gap:16px;
 }
-@media (prefers-color-scheme: dark){
-  :root{
-    color-scheme:dark;
-    --bg:#0E121A; --card:#151B26; --panel:#121822; --fg:#E8ECF2; --muted:#9AA4B5; --border:#273041; --campo:#6E7A8E;
-    --punto:#2A3344; --raya:rgba(255,255,255,.05);
-    --azul:#5B8DFF; --azul-soft:#16264A; --azul-fg:#A9C3FF; --barra:#0A4FD9;
-    --primary:#2F6BF2; --on-primary:#FFFFFF;
-    --accent:#34B36A; --on-accent:#06120A; --accent-soft:#10291B; --accent-fg:#9BE3B6; --nodo-ok:#3CC173;
-    --naranja:#F08A45; --naranja-fuerte:#F59E5B;
-    --warn-bg:#2A1A0C; --warn-fg:#FFC199; --warn-border:#E07A35;
-    --danger:#FF5A4F; --on-danger:#14080A; --danger-soft:#3A1412; --ring:#7DA2FF;
-    --morado:#A48BFF;
-    --sombra:0 1px 2px rgba(0,0,0,.3),0 6px 16px rgba(0,0,0,.3);
-    --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236E7A8E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l6 6-6 6'/%3E%3C/svg%3E");
-    --flecha:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B8DFF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
-  }
-}
+/* Siempre tema claro, aunque el sistema esté en modo oscuro (pedido del equipo) */
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overscroll-behavior:none} /* sin "deslizar para recargar" */
 body{font:18px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%;accent-color:var(--azul);caret-color:var(--azul)}
@@ -574,7 +558,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.6';
+const VERSION = '0.5.7';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];

@@ -558,7 +558,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.8';
+const VERSION = '0.5.9';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -582,7 +582,7 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
   'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde',
   'importe_total','tipo_entrada','material_nombre','lote_proveedor','entrada_ref','cant_requerida','cant_a_produccion','cant_devuelta',
-  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida','min_pausa'];
+  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida','min_pausa','densidades'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
   catalogos:'zs_cap_catalogos' };
@@ -760,6 +760,7 @@ if (!catalogos.equipos_limpios) { // 0.4.1: la lista de equipos empieza vacía; 
   if (!bloqueadas.has(K.catalogos)) guardar(K.catalogos, catalogos);
 }
 catalogos.causas_paro = catalogos.causas_paro || []; // 0.5.0: causas de paro, aparte de las de merma
+catalogos.densidades = catalogos.densidades || []; // 0.5.9: kg por litro de cada líquido, para el balance del cierre
 let vista = 'orden';
 
 // ---------- Fechas ----------
@@ -1702,9 +1703,12 @@ function agregarCatalogo(lista, nombre){
 const factoresDe = producto => catalogos.factores.filter(f => f.activo && producto && normal(f.producto) === normal(producto));
 const redondo = (n, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 const cierreDe = orden => registros.filter(r => r.tipo === 'cierre' && r.anulado === 'no' && r.orden === orden).pop() || null;
+// Kg de un renglón en Kg o en Lt (litros × densidad del catálogo); 0 si es un líquido sin densidad o va en unidades
+const densidadDe = n => (catalogos.densidades.find(d => normal(d.nombre) === normal(n || '')) || {}).kg_l;
+const enKg = (x, campo) => x.unidad === 'Kg' ? x[campo] : x.unidad === 'Lt' ? x[campo] * (densidadDe(x.material_nombre) || 0) : 0;
 // Merma de MP en kg de los eventos medidos (pesados o contados): lo estimado queda fuera del indicador.
 const kgEventosMP = orden => redondo(registros.filter(r => r.tipo === 'merma' && r.anulado === 'no' && r.orden === orden &&
-  r.material === 'MP' && r.unidad === 'Kg' && r.medicion !== 'Estimado').reduce((t, r) => t + r.cant_merma, 0));
+  r.material === 'MP' && r.medicion !== 'Estimado').reduce((t, r) => t + enKg(r, 'cant_merma'), 0));
 // Balance de un cierre. kg solo con factor; % solo con factor confirmado con planta. Nunca se mezclan kg y piezas en un %.
 function balance(r){
   if (!r.kg_mp_por_pieza) return {};
@@ -1783,21 +1787,41 @@ async function cerrarOrden(){
     [{ v: null, t: 'Cancelar', c: 'prim' }, { v: 'si', t: 'Hacer un cierre nuevo' }]) !== 'si') return;
   const pre = await prepararOrigen();
   if (!pre) return;
+  // Los líquidos (Lt) entran al balance en kg con su densidad: se pide la primera vez y después solo se confirma
+  const liquidos = [...new Set(entradasDe(o.orden).filter(x => (x.material || 'MP') === 'MP' && x.unidad === 'Lt').map(x => x.material_nombre || 'MP'))];
+  if (liquidos.length) {
+    const cd = liquidos.map((n, i) => ({ k: 'd' + i, label: `${n} (kg por litro)`, tipo: 'num', valor: densidadDe(n) }));
+    for (;;) {
+      const d = await pedirDatos(`${o.orden} · Densidad de los líquidos`, 'El balance va en kg. Escribe cuántos kg pesa un litro de cada líquido (ficha técnica). Queda guardada para las próximas órdenes.', cd);
+      if (!d) return;
+      cd.forEach(c => { c.valor = d[c.k]; });
+      const raras = liquidos.filter((n, i) => d['d' + i] < 0.5 || d['d' + i] > 2);
+      if (raras.length && !(await revisar(`Densidad fuera de lo común (de 0.5 a 2 kg por litro) en: ${raras.join(', ')}.`))) continue;
+      const antes = JSON.stringify(catalogos);
+      liquidos.forEach((n, i) => { const x = catalogos.densidades.find(z => normal(z.nombre) === normal(n)); if (x) x.kg_l = d['d' + i]; else catalogos.densidades.push({ nombre: n, kg_l: d['d' + i] }); });
+      if (!guardar(K.catalogos, catalogos)) { catalogos = JSON.parse(antes); return; }
+      break;
+    }
+  }
   const fs = factoresDe(o.producto);
-  const kgMP = tipo => delTipo(tipo, o.orden).filter(x => x.material === 'MP' && x.unidad === 'Kg');
+  const kgMP = tipo => delTipo(tipo, o.orden).filter(x => x.material === 'MP' && (x.unidad === 'Kg' || x.unidad === 'Lt'));
+  const sumaKg = (xs, campo) => redondo(xs.reduce((t, x) => t + enKg(x, campo), 0));
   // Lo que se entregó a producción (lo recibido que no entró a producción no es merma); sin entregas, lo recibido
-  const recibidoKg = suma(entradasDe(o.orden).filter(x => (x.material || 'MP') === 'MP' && x.unidad === 'Kg'), 'cant_recibida');
-  const entregadoKg = redondo(suma(kgMP('entrega'), 'cant_a_produccion'));
+  const recibidoKg = sumaKg(entradasDe(o.orden).filter(x => (x.material || 'MP') === 'MP'), 'cant_recibida');
+  const entregadoKg = sumaKg(kgMP('entrega'), 'cant_a_produccion');
+  const conv = liquidos.map(n => { const xs = (entregadoKg ? kgMP('entrega') : entradasDe(o.orden)).filter(x => x.unidad === 'Lt' && (x.material_nombre || 'MP') === n);
+    const l = redondo(suma(xs, entregadoKg ? 'cant_a_produccion' : 'cant_recibida')); return l ? `${n} ${l} L × ${densidadDe(n)} = ${redondo(l * densidadDe(n))} kg` : ''; }).filter(Boolean);
   const fab = fabricado(o.orden), entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden);
   const mermasPT = registros.filter(r => r.tipo === 'merma' && r.anulado === 'no' && r.orden === o.orden && r.material === 'PT no conforme');
   const noConf = suma(mermasPT, 'cant_merma');
   const campos = [
     { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: entregadoKg || recibidoKg || '' },
     { k: 'pt_conforme_u', label: 'PT conforme (unidades)', tipo: 'entero', cero: true, valor: fab ? fab - noConf : '' },
-    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: entregas.length ? suma(kgMP('devolucion'), 'cant_devuelta') : '' },
+    { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: entregas.length ? sumaKg(kgMP('devolucion'), 'cant_devuelta') : '' },
     { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true, valor: fab ? noConf : '' },
     { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true, valor: (mermasPT[mermasPT.length - 1] || {}).destino_merma }];
-  const aviso0 = [entregadoKg ? 'MP entregada viene con lo entregado a producción en kg' : recibidoKg ? 'MP entregada viene con la MP recibida en kg (no hay entregas a producción registradas)' : '', fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (entregadoKg || recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
+  const aviso0 = [(entregadoKg ? 'MP entregada viene con lo entregado a producción en kg' : recibidoKg ? 'MP entregada viene con la MP recibida en kg (no hay entregas a producción registradas)' : '') +
+    (conv.length ? ` (incluye ${conv.join('; ')})` : ''), fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (entregadoKg || recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
     (fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`);
   const f = fs[0];
   let datos;
@@ -1810,7 +1834,8 @@ async function cerrarOrden(){
       && !(await revisar(`PT conforme + no conforme = ${d.pt_conforme_u + d.pt_no_conforme_pz}, pero se fabricaron ${fab} unidades.`))) continue;
     datos = Object.assign({ tipo: 'cierre', orden: o.orden, cliente: o.cliente, oc: o.oc, producto: o.producto, linea: o.linea || '',
       origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d,
-      f ? { kg_mp_por_pieza: f.kg_pieza, factor_estado: f.estado } : {}); // copia del factor: rastro de con qué se calculó
+      f ? { kg_mp_por_pieza: f.kg_pieza, factor_estado: f.estado } : {}, // copia del factor: rastro de con qué se calculó
+      liquidos.length ? { densidades: liquidos.map(n => `${n} ${densidadDe(n)} kg/L`).join(' | ') } : {});
     // poka-yoke: salir más MP de la que entró no puede pasar; casi siempre es el factor (kg de UNA pieza)
     if (balance(datos).merma_kg < 0) {
       await avisar(`Lo producido (${d.pt_conforme_u} piezas × ${f.kg_pieza} kg = ${redondo(d.pt_conforme_u * f.kg_pieza)} kg) más lo devuelto (${d.devuelto_kg} kg) pesa más que la MP entregada (${d.mp_entregada_kg} kg). ` +

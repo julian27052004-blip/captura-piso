@@ -537,7 +537,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.4';
+const VERSION = '0.5.5';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -1228,7 +1228,10 @@ async function datosEtapa(o, etapa, lista){
     const texto = [`Producción ${k}.` + (o.cant_pedida ? ` La OC pide ${o.cant_pedida} unidades; en producciones anteriores se fabricaron ${antes}.` : ''),
       ent.length ? `Entregado a esta producción: ${ent.map(x => `${x.material_nombre || 'MP'} ${x.cant_a_produccion} ${x.unidad || ''}${x.lote_proveedor ? ` (lote ${x.lote_proveedor})` : ''}`).join(', ')}.`
         : 'Sin entrega de MP registrada en esta producción.', 'El lote queda escrito en la entrega y las devoluciones de esta producción.'].join('\n');
-    const empaques = suma(ent.filter(x => x.material === 'Empaque' && x.unidad === 'Unidades'), 'cant_a_produccion');
+    // Cada empaque por separado (puede venir de varias entradas): con que falte uno ya no sale la pieza
+    const empaques = {};
+    ent.filter(x => x.material === 'Empaque' && x.unidad === 'Unidades').forEach(x => {
+      const n = x.material_nombre || 'Empaque'; empaques[n] = (empaques[n] || 0) + x.cant_a_produccion; });
     const campos = [{ k: 'lote', label: 'Número de lote', tipo: 'texto' },
       { k: 'cant_fabricada', label: 'Cantidad fabricada (unidades)', tipo: 'entero' },
       { k: 'observaciones', label: 'Observaciones', tipo: 'texto', opcional: true }];
@@ -1238,7 +1241,8 @@ async function datosEtapa(o, etapa, lista){
       campos.forEach(c => { c.valor = d[c.k]; });
       d.unidad = 'Unidades'; // lo fabricado siempre se cuenta en unidades
       // poka-yoke: sin empaque no hay pieza
-      if (empaques && d.cant_fabricada > empaques && !(await revisar(`Fabricadas ${d.cant_fabricada} unidades, pero a esta producción se entregaron ${empaques} empaques.`))) continue;
+      const cortos = Object.entries(empaques).filter(([, c]) => c && d.cant_fabricada > c).map(([n, c]) => `${c} de ${n}`);
+      if (cortos.length && !(await revisar(`Fabricadas ${d.cant_fabricada} unidades, pero a esta producción solo se entregaron ${cortos.join(', ')}.`))) continue;
       const otro = registros.find(r => r.tipo === 'etapa' && r.etapa === etapa && r.anulado === 'no' && !(r.orden === o.orden && deCorrida(r, k)) && normal(r.lote || '') === normal(d.lote));
       if (!otro || await revisar(`El lote ${d.lote} ya está en ${otro.orden} (producción ${otro.corrida || 1}).`)) return d;
     }

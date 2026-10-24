@@ -558,7 +558,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.5.7';
+const VERSION = '0.5.8';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -1785,17 +1785,19 @@ async function cerrarOrden(){
   if (!pre) return;
   const fs = factoresDe(o.producto);
   const kgMP = tipo => delTipo(tipo, o.orden).filter(x => x.material === 'MP' && x.unidad === 'Kg');
+  // Lo que se entregó a producción (lo recibido que no entró a producción no es merma); sin entregas, lo recibido
   const recibidoKg = suma(entradasDe(o.orden).filter(x => (x.material || 'MP') === 'MP' && x.unidad === 'Kg'), 'cant_recibida');
+  const entregadoKg = redondo(suma(kgMP('entrega'), 'cant_a_produccion'));
   const fab = fabricado(o.orden), entregas = delTipo('entrega', o.orden), devs = delTipo('devolucion', o.orden);
   const mermasPT = registros.filter(r => r.tipo === 'merma' && r.anulado === 'no' && r.orden === o.orden && r.material === 'PT no conforme');
   const noConf = suma(mermasPT, 'cant_merma');
   const campos = [
-    { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: recibidoKg || '' },
+    { k: 'mp_entregada_kg', label: 'MP entregada (kg)', tipo: 'num', valor: entregadoKg || recibidoKg || '' },
     { k: 'pt_conforme_u', label: 'PT conforme (unidades)', tipo: 'entero', cero: true, valor: fab ? fab - noConf : '' },
     { k: 'devuelto_kg', label: 'Sobrante devuelto (kg)', tipo: 'num', cero: true, valor: entregas.length ? suma(kgMP('devolucion'), 'cant_devuelta') : '' },
     { k: 'pt_no_conforme_pz', label: 'PT no conforme (piezas)', tipo: 'entero', cero: true, valor: fab ? noConf : '' },
     { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true, valor: (mermasPT[mermasPT.length - 1] || {}).destino_merma }];
-  const aviso0 = [recibidoKg ? 'MP entregada viene con la MP recibida en kg' : '', fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
+  const aviso0 = [entregadoKg ? 'MP entregada viene con lo entregado a producción en kg' : recibidoKg ? 'MP entregada viene con la MP recibida en kg (no hay entregas a producción registradas)' : '', fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (entregadoKg || recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
     (fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`);
   const f = fs[0];
   let datos;
@@ -2011,7 +2013,12 @@ function calculados(r, cache){
     if (o && o.cant_pedida) {
       let acum = 0; const ss = salidasDe(o.orden), comp = ss.find(x => (acum += Number(x.cant_sale) || 0) >= o.cant_pedida);
       if (comp) Object.assign(c, otifDe(o, comp.fecha_hora_evento, salido(o.orden)));
-      else Object.assign(c, { cant_entregada: salido(o.orden), completo: ss.length ? 'no' : '', fecha_pedida: o.fecha_pedida });
+      else {
+        // Sin completar: OTIF «no» en cuanto la orden tiene cierre o ya pasó la fecha comprometida; antes sigue pendiente (vacío)
+        const vencida = !!cierreDe(o.orden) || !!(o.fecha_pedida && hoyStr() > o.fecha_pedida), ult = ss[ss.length - 1];
+        Object.assign(c, { cant_entregada: salido(o.orden), completo: ss.length || vencida ? 'no' : '', fecha_pedida: o.fecha_pedida, cant_pedida: o.cant_pedida },
+          vencida ? { otif: 'no', base_otif: 'salida de planta', a_tiempo: o.fecha_pedida ? sino(!!ult && ult.fecha_hora_evento.slice(0, 10) <= o.fecha_pedida) : '' } : {});
+      }
     }
   }
   if (r.tipo === 'sesion' && r.inicio && r.fin) { c.min_pausa = minPausa(r.pausas); c.minutos = redondo(minutosEntre(r.inicio, r.fin) - c.min_pausa, 1); } // minutos observados

@@ -558,7 +558,7 @@ dialog{max-height:calc(100dvh - 24px);overflow-y:auto}
 
 <script>
 'use strict';
-const VERSION = '0.6.0';
+const VERSION = '0.7.0';
 const ETAPAS = ['MP recibida', 'MP liberada', 'Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo', 'Salida'];
 const NOCHE = ['Explosión de materiales', 'Inicio de producción', 'Fin de producción', 'PT listo']; // lo único que se registra en turno noche
 const LUGARES = ['Pasteur', 'Salida Pátzcuaro', 'Ciudad Industrial', 'Otro'];
@@ -582,7 +582,7 @@ const COLUMNAS = ['id','tipo','fecha_hora_evento','fecha_hora_captura','capturo'
   'linea','material','momento','medicion','cant_merma','destino_merma','mp_entregada_kg','pt_conforme_u','unidad_empaque','devuelto_kg',
   'pt_no_conforme_pz','piezas_por_unidad','kg_mp_por_pieza','factor_estado','merma_kg','dif_eventos_kg','minutos_desde',
   'importe_total','tipo_entrada','material_nombre','lote_proveedor','entrada_ref','cant_requerida','cant_a_produccion','cant_devuelta',
-  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida','min_pausa','densidades','mp_entregada_calc_kg'];
+  'lote','cant_fabricada','observaciones','insumos','tarimas_esperando','corrida','min_pausa','densidades','mp_entregada_calc_kg','min_trabajo','ritmo_u_hora','rendimiento_pct'];
 const K = { usuario:'zs_cap_usuario', registros:'zs_cap_registros', ordenes:'zs_cap_ordenes', sesion:'zs_cap_sesion',
   ordenActual:'zs_cap_orden_actual', exportados:'zs_cap_exportados', ultimoExport:'zs_cap_ultimo_export', separador:'zs_cap_separador',
   catalogos:'zs_cap_catalogos' };
@@ -716,6 +716,7 @@ function pedirDatos(titulo, texto, campos, validar){
         datos[c.k] = v;
       } else {
         const v = $('dc-' + c.k).value, n = Number(v);
+        if (v === '' && c.opcional) { datos[c.k] = ''; continue; }
         if (v === '' || !(c.cero ? n >= 0 : n > 0)) return falta(`Escribe ${c.label.toLowerCase()} (${c.cero ? '0 o más' : 'mayor que 0'}).`);
         if (c.tipo === 'entero' && !Number.isInteger(n)) return falta(`${c.label}: solo números enteros.`);
         datos[c.k] = n;
@@ -1129,8 +1130,8 @@ const sinMateriales = async (titulo, texto) => await preguntar(titulo, texto, [{
 const pendientes = o => (o.insumos || []).filter(i => !entradasDe(o.orden).some(e => e.material_nombre === i.nombre));
 // Entrega y devoluciones de una producción: al registrar su Fin llevan su lote de PT (una entrada de MP puede alimentar varios lotes)
 const ligadosAlLote = (o, k) => registros.filter(x => x.orden === o.orden && x.anulado === 'no' && ['entrega', 'devolucion'].includes(x.tipo) && deCorrida(x, k));
-async function pedirEntrada(o, titulo, texto){
-  const ins = pendientes(o); // los que ya entraron salen del menú
+async function pedirEntrada(o, titulo, texto, otroLote){
+  const ins = otroLote ? o.insumos || [] : pendientes(o); // los que ya entraron salen del menú (salvo otro lote del mismo insumo)
   if (!(o.insumos || []).length) { await avisar('Esta orden no tiene insumos. Agrégalos con «Editar orden» y vuelve a intentar.', 'Sin insumos'); return null; }
   if (!ins.length) { await avisar('Ya entraron todos los insumos de la OC. Si falta uno, agrégalo con «Editar orden».', 'Insumos completos'); return null; }
   const d = await pedirDatos(titulo, texto, [
@@ -1553,7 +1554,18 @@ async function otraEntrada(){
   const o = orden();
   if (!o || Date.now() < pausaHasta) return;
   if (bloqueadaDeNoche('MP recibida')) { await avisar(`En turno noche solo se registran: ${NOCHE.join(', ')}.`, 'Turno noche'); return; }
-  if (!pendientes(o).length) { await pedirEntrada(o); return; } // avisa por qué no hay nada que registrar
+  if (!pendientes(o).length) {
+    if (!(o.insumos || []).length) { await pedirEntrada(o); return; } // avisa que la orden no tiene insumos
+    // Con todos los insumos ya recibidos, lo que sigue es otro lote de alguno (un material puede llegar en varios lotes)
+    if (await preguntar('Insumos completos', 'Ya entraron todos los insumos de la OC. ¿Llegó otro lote de alguno?',
+      [{ v: 'si', t: 'Registrar otro lote', c: 'prim' }, { v: null, t: 'Cancelar' }]) !== 'si') return;
+    const pre = await prepararOrigen();
+    if (!pre) return;
+    const d = await pedirEntrada(o, `${o.orden} · Otro lote`, 'Mismo insumo, otro lote del proveedor, con su cantidad.', true);
+    if (d && nuevoRegistro(Object.assign({ tipo: 'entrada', area: 'Almacén MP' }, deOrden(o), { origen: pre.origen, documento: pre.documento, fecha_hora_evento: pre.evento }, d)))
+      despuesDeGuardar(`${o.orden} · otro lote de ${d.material_nombre}${d.lote_proveedor ? ` (${d.lote_proveedor})` : ''}`);
+    return;
+  }
   const pre = await prepararOrigen();
   if (!pre) return;
   const n = await entradasRestantes(o, pre, true);
@@ -1725,7 +1737,7 @@ function textoBalance(r){
   const lineas = [`MP entregada ${r.mp_entregada_kg} kg · PT conforme ${r.pt_conforme_u} ${r.unidad_empaque ? `unidades (${r.unidad_empaque})` : 'unidades'} · devuelto ${r.devuelto_kg} kg · ` +
     `PT no conforme ${cuenta(r.pt_no_conforme_pz, 'pieza')}${r.destino_merma ? ` (${r.destino_merma})` : ''}`];
   if (r.mp_entregada_calc_kg) lineas.push(`MP entregada corregida a mano: la app calculó ${r.mp_entregada_calc_kg} kg.`);
-  if (b.merma_kg === undefined) lineas.push('Sin factor piezas-peso para este producto: merma_kg y merma_pct quedan vacíos. Se agrega en Más › Catálogos.');
+  if (b.merma_kg === undefined) lineas.push('Sin factor piezas-peso para este producto: merma_kg y merma_pct quedan vacíos. Se agrega en la pestaña Merma.');
   else {
     lineas.push(`Merma del balance: ${b.merma_kg} kg · ` + (b.merma_pct !== undefined ? `${b.merma_pct} % de la MP entregada` : '% pendiente: factor por confirmar con planta'));
     lineas.push(`Mermas de MP medidas en kg (sin estimadas): ${kgEventosMP(r.orden)} kg · Diferencia con el balance: ${b.dif_eventos_kg} kg`);
@@ -1825,7 +1837,7 @@ async function cerrarOrden(){
     { k: 'destino_merma', label: 'Destino del PT no conforme', tipo: 'opc', opciones: DESTINOS_MERMA, opcional: true, valor: (mermasPT[mermasPT.length - 1] || {}).destino_merma }];
   const aviso0 = [(entregadoKg ? 'MP entregada viene con lo entregado a producción en kg' : recibidoKg ? 'MP entregada viene con la MP recibida en kg (no hay entregas a producción registradas)' : '') +
     (conv.length ? ` (incluye ${conv.join('; ')})` : ''), fab ? `PT viene con lo fabricado (${fab}) y las mermas de PT no conforme (${noConf})` : ''].filter(Boolean).join('; ') + (entregadoKg || recibidoKg || fab ? '. Corrígelos si no aplica.\n' : '') +
-    (fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en Más › Catálogos.`);
+    (fs.length ? '' : `«${o.producto || 'Sin producto'}» no tiene factor piezas-peso: merma_kg y merma_pct quedarán vacíos. Se agrega en la pestaña Merma.`);
   const f = fs[0], mpCalc = entregadoKg || recibidoKg || 0;
   let datos;
   for (;;) {
@@ -1846,7 +1858,7 @@ async function cerrarOrden(){
     // poka-yoke: salir más MP de la que entró no puede pasar; casi siempre es el factor (kg de UNA pieza)
     if (balance(datos).merma_kg < 0) {
       await avisar(`El PT conforme (${d.pt_conforme_u} piezas × ${f.kg_pieza} kg = ${redondo(d.pt_conforme_u * f.kg_pieza)} kg) más lo devuelto (${d.devuelto_kg} kg) pesa más que la MP entregada (${d.mp_entregada_kg} kg). ` +
-        'Eso no puede pasar. Revisa las cantidades o el factor «kg de MP en UNA pieza» en Más › Catálogos.', 'El balance no cuadra');
+        'Eso no puede pasar. Revisa las cantidades o el factor «kg de MP en UNA pieza» en la pestaña Merma.', 'El balance no cuadra');
       continue;
     }
     if (entregas.length && !devs.length && !d.devuelto_kg) {
@@ -1920,7 +1932,8 @@ function renderTiempos(){
     filas.push(filaCatalogo(`Producción ${k}${fin && fin.lote ? ` · lote ${fin.lote} · ${fin.cant_fabricada} unidades` : ''}`,
       [ini && `Inicio ${hora(ini.fecha_hora_evento)}`, fin && `Fin ${hora(fin.fecha_hora_evento)}${ini ? ` (${fmtMin(minutosEntre(ini.fecha_hora_evento, fin.fecha_hora_evento))})` : ''}`,
         pt && `PT listo ${hora(pt.fecha_hora_evento)}${fin ? ` (${fmtMin(minutosEntre(fin.fecha_hora_evento, pt.fecha_hora_evento))})` : ''}`,
-        ini && pt && `total ${fmtMin(minutosEntre(ini.fecha_hora_evento, pt.fecha_hora_evento))}`].filter(Boolean).join(' · '), true, []));
+        ini && pt && `total ${fmtMin(minutosEntre(ini.fecha_hora_evento, pt.fecha_hora_evento))}`,
+        fin && (r => r.ritmo_u_hora && `${r.ritmo_u_hora} u/h trabajada${r.rendimiento_pct !== undefined ? ` · ${r.rendimiento_pct} % del estándar` : ''}`)(ritmoDe(fin))].filter(Boolean).join(' · '), true, []));
   }
   $('tiempos-corridas').replaceChildren(...(filas.length ? filas : [p('Todavía no empieza ninguna producción.')]));
   // Todo en orden de hora, con un separador por día
@@ -1973,7 +1986,7 @@ function renderFactores(){
   const o = orden(), es = f => o && normal(f.producto) === normal(o.producto || '');
   const fs = catalogos.factores.slice().sort((a, b) => es(b) - es(a));
   $('cat-factores').replaceChildren(...(fs.length ? fs.map(f => filaCatalogo(f.producto + (es(f) ? ' · orden activa' : ''),
-    `${f.kg_pieza} kg de MP por pieza · ${f.estado}${f.activo ? '' : ' · desactivado'}`, f.activo,
+    `${f.kg_pieza} kg de MP por pieza · ${f.estado}${f.u_hora ? ` · estándar ${f.u_hora} u/h` : ''}${f.activo ? '' : ' · desactivado'}`, f.activo,
     [['Editar', () => editarFactor(f)], [f.activo ? 'Quitar' : 'Reactivar', () => alternar(f)]]))
     : [Object.assign(document.createElement('p'), { className: 'ayuda', textContent: 'Sin factores: sin ellos no se calcula la merma en kg del cierre.' })]));
   $('cat-nuevo-factor').disabled = !o || catalogos.factores.some(f => f.activo && es(f)); // uno por producto
@@ -1984,7 +1997,8 @@ async function editarFactor(f){
   const d = await pedirDatos(f ? 'Editar factor piezas-peso' : 'Nuevo factor piezas-peso', 'Kg de MP por pieza según la fórmula del producto, no el peso del envase (hay envase y, en productos cocidos, evaporación).', [
     { k: 'producto', label: 'Producto (de la OC)', tipo: 'opc', opciones: [producto], valor: producto },
     { k: 'kg_pieza', label: 'Kg de MP en UNA pieza (ej. 0.37 para un frasco de 370 g)', tipo: 'num', valor: f && f.kg_pieza },
-    { k: 'estado', label: 'Estado del factor', tipo: 'opc', opciones: ESTADOS_FACTOR, valor: f ? f.estado : 'Por confirmar' }]);
+    { k: 'estado', label: 'Estado del factor', tipo: 'opc', opciones: ESTADOS_FACTOR, valor: f ? f.estado : 'Por confirmar' },
+    { k: 'u_hora', label: 'Unidades por hora estándar (de la hoja hora por hora)', tipo: 'num', opcional: true, valor: f && f.u_hora }]);
   if (!d) return;
   const repetido = catalogos.factores.find(x => x !== f && x.activo && normal(x.producto) === normal(d.producto));
   if (repetido) { await avisar(`Ya hay un factor para «${repetido.producto}». Edítalo en lugar de crear otro.`, 'Factor repetido'); return; }
@@ -2017,6 +2031,18 @@ $('toast-deshacer').onclick = () => {
 };
 
 // ---------- Exportar ----------
+// Ritmo de una producción: unidades por hora trabajada (de Inicio a Fin, sin los minutos de paro); % contra el estándar del producto si lo hay
+function ritmoDe(fin){
+  const k = fin.corrida || 1, ini = etapasVig(fin.orden, 'Inicio de producción').filter(x => deCorrida(x, k)).pop();
+  if (!ini || !fin.cant_fabricada) return {};
+  const a = ini.fecha_hora_evento, b = fin.fecha_hora_evento;
+  const paro = registros.filter(p => p.tipo === 'paro' && p.anulado === 'no' && p.orden === fin.orden && p.inicio && p.fin)
+    .reduce((t, p) => { const s = p.inicio > a ? p.inicio : a, e = p.fin < b ? p.fin : b; return t + (e > s ? minutosEntre(s, e) : 0); }, 0);
+  const min = redondo(minutosEntre(a, b) - paro, 1);
+  if (min <= 0) return {};
+  const ritmo = fin.cant_fabricada / min * 60, std = (factoresDe(fin.producto)[0] || {}).u_hora; // el % sale del ritmo sin redondear
+  return { min_trabajo: min, ritmo_u_hora: redondo(ritmo, 1), rendimiento_pct: std ? redondo(ritmo / std * 100, 1) : undefined };
+}
 function calculados(r, cache){
   const c = {};
   if (r.tipo === 'etapa' && r.anulado === 'no') {
@@ -2033,6 +2059,7 @@ function calculados(r, cache){
       const prev = k > 1 && i === 3 && etapasVig(r.orden, 'PT listo').filter(x => deCorrida(x, k - 1)).pop(); // producción 2+: desde la anterior
       if (prev) { c.minutos = minutosEntre(prev.fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = `PT listo (producción ${k - 1})`; }
       else if (j >= 0) { c.minutos = minutosEntre(lista[j].fecha_hora_evento, r.fecha_hora_evento); c.minutos_desde = ETAPAS[j]; }
+      if (i === 4) Object.assign(c, ritmoDe(r));
     }
   }
   if (r.tipo === 'paro' && r.inicio) {
